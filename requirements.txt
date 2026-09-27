@@ -1,5 +1,5 @@
-ultralytics
-opencv-python
-torch
-numpy
-pyyaml
+ultralytics==8.4.157
+opencv-python==4.14.0.94
+torch==2.14.0
+numpy==2.2.6
+pyyaml==6.0.3

@@ -27,9 +27,8 @@ Welcome to BSRA-CV! This is the order to read things in and get set up.
 ```bash
 git clone https://github.com/hhatamiy/BSRA-CV.git
 cd BSRA-CV
-python3 -m venv venv
-source venv/bin/activate   # on Windows: venv\Scripts\activate
-pip install -r requirements.txt
+./scripts/setup.sh          # creates venv/, installs deps, installs pre-commit hooks
+source venv/bin/activate    # do this in every new shell
 python scripts/quickstart.py
 ```
 

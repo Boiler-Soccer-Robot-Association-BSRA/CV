@@ -25,6 +25,8 @@ class Detection:
     class_name: str
     confidence: float
     bbox: BoundingBox
+    timestamp: float | None = None
+    """Unix time the source camera frame was captured, if known."""
 
 
 @dataclass
@@ -42,3 +44,5 @@ class PerceptionObject:
     class_name: str
     confidence: float
     position: Position2D
+    timestamp: float | None = None
+    """Carried over from the source Detection."""

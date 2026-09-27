@@ -83,6 +83,47 @@ NVIDIA onboard computer — add those to a `requirements.txt` in this folder
 when that work starts, rather than the shared one, since not everyone
 needs them.
 
+## Benchmark harness
+
+`tests/eval_harness.py` is implemented and runnable today:
+
+```bash
+python testing-deployment-team/tests/eval_harness.py
+```
+
+With no arguments it runs the bundled `dummy_detector.py` (simple color
+thresholding, no model) over the tiny synthetic dataset in
+`tests/fixtures/sample_dataset/`, and:
+
+1. Computes precision and recall at IoU 0.5, plus mean ms/frame.
+2. Writes the results to `benchmarks/results/latest.json`.
+3. Compares recall against `benchmarks/baseline.json` and exits nonzero
+   if it dropped by more than `--max-recall-drop` (default `0.05`).
+
+To point it at a real model and a real dataset instead:
+
+```bash
+python testing-deployment-team/tests/eval_harness.py \
+    --detector-file detection-team/inference/detector.py \
+    --detector-class Detector \
+    --weights path/to/weights.pt \
+    --manifest path/to/real/manifest.yaml
+```
+
+The manifest is a YAML or JSON list of `{image, annotations}` entries —
+see the docstring at the top of `eval_harness.py` for the exact format,
+and `tests/fixtures/generate_sample_dataset.py` for a worked example.
+`--detector-file`/`--detector-class` load any class implementing
+`predict(image) -> list[Detection]`, constructed with a `weights_path`
+keyword it's free to ignore — the same interface
+`detection-team/inference/detector.py`'s `Detector` already has, so no
+adapter code is needed once that's implemented for real.
+
+Once a real model exists, re-run the harness against a real held-out
+set and overwrite `benchmarks/baseline.json` with those numbers (commit
+that change on its own so it's easy to see when/why the baseline
+moved).
+
 ## First task
 
 Sketch the evaluation harness: given a trained model and a val split, run

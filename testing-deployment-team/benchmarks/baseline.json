@@ -1,0 +1,12 @@
+{
+  "precision": 1.0,
+  "recall": 1.0,
+  "ms_per_frame": 0.2,
+  "num_frames": 5,
+  "num_predictions": 4,
+  "num_ground_truth": 4,
+  "iou_threshold": 0.5,
+  "detector": "dummy_detector.DummyDetector",
+  "dataset": "fixtures/sample_dataset/manifest.yaml",
+  "note": "Baseline for the bundled dummy detector + synthetic fixture dataset only. Replace with a real model's numbers once detection-team has a trained detector and data-team has a real labeled val set."
+}

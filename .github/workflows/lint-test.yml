@@ -25,10 +25,11 @@ jobs:
       - name: Lint with ruff
         run: ruff check .
 
+      - name: Check formatting with ruff
+        run: ruff format --check .
+
       - name: Run tests
-        run: |
-          if find testing-deployment-team/tests -name 'test_*.py' -o -name '*_test.py' | grep -q .; then
-            pytest testing-deployment-team/tests/
-          else
-            echo "No tests in testing-deployment-team/tests/ yet, skipping."
-          fi
+        run: pytest testing-deployment-team/tests/
+
+      - name: Run benchmark harness (regression gate)
+        run: python testing-deployment-team/tests/eval_harness.py

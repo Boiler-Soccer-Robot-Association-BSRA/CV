@@ -11,7 +11,7 @@ See [ARCHITECTURE.md](../ARCHITECTURE.md) for the full pipeline.
 
 ### September — Fundamentals & setup
 
-- **Week 1** — Install ROS 2 and get a workspace building. Also install
+- **Week 1** — Install ROS 2 (ros:jazzy-perception) and get a workspace building. Also install
   the root [requirements.txt](../requirements.txt) so you can read
   detection-team's output types.
 - **Week 2** — Review ROS 2 image/message concepts: topics, message

@@ -16,6 +16,10 @@ predictions matched first), and reports:
 
   - precision = TP / (TP + FP)
   - recall    = TP / (TP + FN)
+  - map50     = mean over classes of average precision at the same IoU
+                threshold (all-point interpolated, VOC/COCO style); only
+                classes with at least one ground-truth box are averaged
+  - per_class_ap (the per-class APs that went into map50)
   - ms_per_frame (mean wall-clock time per predict() call)
 
 Results are written to --output as JSON. If --baseline exists and
@@ -95,13 +99,17 @@ def iou(a: BoundingBox, b: BoundingBox) -> float:
     return intersection / union if union > 0 else 0.0
 
 
-def match_frame(
+def match_frame_detailed(
     predictions: list[Detection], ground_truth: list[dict], iou_threshold: float
-) -> tuple[int, int, int]:
-    """Return (true_positives, false_positives, false_negatives) for one frame."""
+) -> tuple[list[tuple[Detection, bool]], int]:
+    """Match one frame's predictions to its ground truth.
+
+    Returns ([(prediction, is_true_positive), ...], false_negatives).
+    Predictions are matched greedily, highest confidence first, each
+    ground-truth box at most once.
+    """
     unmatched_gt = list(range(len(ground_truth)))
-    tp = 0
-    fp = 0
+    matches = []
 
     for pred in sorted(predictions, key=lambda d: d.confidence, reverse=True):
         best_iou = 0.0
@@ -117,13 +125,55 @@ def match_frame(
                 best_idx = idx
 
         if best_idx is not None and best_iou >= iou_threshold:
-            tp += 1
+            matches.append((pred, True))
             unmatched_gt.remove(best_idx)
         else:
-            fp += 1
+            matches.append((pred, False))
 
-    fn = len(unmatched_gt)
-    return tp, fp, fn
+    return matches, len(unmatched_gt)
+
+
+def match_frame(
+    predictions: list[Detection], ground_truth: list[dict], iou_threshold: float
+) -> tuple[int, int, int]:
+    """Return (true_positives, false_positives, false_negatives) for one frame."""
+    matches, fn = match_frame_detailed(predictions, ground_truth, iou_threshold)
+    tp = sum(1 for _, is_tp in matches if is_tp)
+    return tp, len(matches) - tp, fn
+
+
+def average_precision(scored: list[tuple[float, bool]], num_ground_truth: int) -> float:
+    """All-point interpolated AP for one class.
+
+    `scored` is (confidence, is_true_positive) for every prediction of
+    that class across the whole dataset.
+    """
+    if num_ground_truth == 0:
+        raise ValueError("AP is undefined for a class with no ground truth")
+
+    scored = sorted(scored, key=lambda item: item[0], reverse=True)
+    precisions = []
+    recalls = []
+    tp = fp = 0
+    for _, is_tp in scored:
+        if is_tp:
+            tp += 1
+        else:
+            fp += 1
+        precisions.append(tp / (tp + fp))
+        recalls.append(tp / num_ground_truth)
+
+    # Make precision monotonically non-increasing, then integrate it over
+    # every point where recall changes.
+    for i in range(len(precisions) - 2, -1, -1):
+        precisions[i] = max(precisions[i], precisions[i + 1])
+
+    ap = 0.0
+    previous_recall = 0.0
+    for precision, recall in zip(precisions, recalls):
+        ap += (recall - previous_recall) * precision
+        previous_recall = recall
+    return ap
 
 
 def run_benchmark(
@@ -135,6 +185,8 @@ def run_benchmark(
     total_tp = total_fp = total_fn = 0
     total_predictions = total_ground_truth = 0
     frame_times_ms = []
+    scored_by_class: dict[str, list[tuple[float, bool]]] = {}
+    ground_truth_by_class: dict[str, int] = {}
 
     for entry in manifest:
         image_path = dataset_dir / entry["image"]
@@ -147,11 +199,18 @@ def run_benchmark(
         frame_times_ms.append((time.perf_counter() - start) * 1000)
 
         ground_truth = entry.get("annotations", [])
-        tp, fp, fn = match_frame(predictions, ground_truth, iou_threshold)
+        matches, fn = match_frame_detailed(predictions, ground_truth, iou_threshold)
+        tp = sum(1 for _, is_tp in matches if is_tp)
 
         total_tp += tp
-        total_fp += fp
+        total_fp += len(matches) - tp
         total_fn += fn
+        for pred, is_tp in matches:
+            scored_by_class.setdefault(pred.class_name, []).append((pred.confidence, is_tp))
+        for gt in ground_truth:
+            ground_truth_by_class[gt["class_name"]] = (
+                ground_truth_by_class.get(gt["class_name"], 0) + 1
+            )
         total_predictions += len(predictions)
         total_ground_truth += len(ground_truth)
 
@@ -159,9 +218,19 @@ def run_benchmark(
     recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 1.0
     ms_per_frame = sum(frame_times_ms) / len(frame_times_ms) if frame_times_ms else 0.0
 
+    per_class_ap = {
+        class_name: average_precision(scored_by_class.get(class_name, []), count)
+        for class_name, count in sorted(ground_truth_by_class.items())
+    }
+    # With no ground truth anywhere, mAP is undefined; report null rather
+    # than a number that looks meaningful.
+    map50 = sum(per_class_ap.values()) / len(per_class_ap) if per_class_ap else None
+
     return {
         "precision": precision,
         "recall": recall,
+        "map50": map50,
+        "per_class_ap": per_class_ap,
         "ms_per_frame": ms_per_frame,
         "num_frames": len(manifest),
         "num_predictions": total_predictions,
@@ -206,8 +275,10 @@ def main() -> int:
     with args.output.open("w") as f:
         json.dump(results, f, indent=2)
 
+    map50 = "n/a" if results["map50"] is None else f"{results['map50']:.3f}"
     print(
         f"precision={results['precision']:.3f} recall={results['recall']:.3f} "
+        f"mAP@{args.iou_threshold}={map50} "
         f"ms/frame={results['ms_per_frame']:.2f} frames={results['num_frames']}"
     )
     print(f"Results written to {args.output}")

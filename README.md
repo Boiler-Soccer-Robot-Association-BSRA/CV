@@ -38,14 +38,14 @@ together and where each subteam's code plugs in.
 
 ## Subteams
 
-Six people across four subteams. Each folder has its own README with
+Seven people across four subteams. Each folder has its own README with
 that team's semester roadmap, folder layout, and first task. See
 [.github/CODEOWNERS](.github/CODEOWNERS) for who's on each one.
 
 - [data-team/](data-team/) — dataset acquisition, labeling, splits, augmentation (Gabriela, Josephine)
 - [detection-team/](detection-team/) — model training and the core detector (Suhaas, Aditya Mitra)
-- [integration-team/](integration-team/) — calibration, geometry, ROS 2 packaging (Phil)
-- [testing-deployment-team/](testing-deployment-team/) — evaluation, robustness, benchmarking, final packaging (Hossein)
+- [integration-team/](integration-team/) — calibration, geometry, ROS 2 packaging (Phil, Henry)
+- [testing-deployment-team/](testing-deployment-team/) — evaluation, robustness, benchmarking, final packaging (Hossein, Henry)
 
 Code shared across all four lives in [shared/](shared/) (class name
 constants, config loading, common types).
@@ -198,7 +198,7 @@ merge — budget time for that rather than expecting an instant merge.
 
 Weekly, Sundays 6–7 PM (subject to change).
 
-**Open question:** now that the team is six people, worth deciding
+**Open question:** now that the team is seven people, worth deciding
 whether to keep a single one-hour Sunday sync for everyone, or split
 into a shorter full-team check-in plus separate subteam meetings.
 Not decided yet — raise it at the next sync.

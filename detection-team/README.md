@@ -9,9 +9,12 @@ projects into robot-relative positions — see
 
 ## Semester roadmap
 
+Progress markers reflect what's visible in the repo as of Oct 1.
+
 ### September — Fundamentals & setup
 
-- **Week 1** — Install and verify the OpenCV/PyTorch/Ultralytics
+- **Week 1** *(in progress: sample test image added in `training/test-images/`)* —
+  Install and verify the OpenCV/PyTorch/Ultralytics
   environment (root `requirements.txt`); run a pretrained YOLO model on
   a sample image as a smoke test.
 - **Week 2** — OpenCV fundamentals: images, pixels, color spaces,

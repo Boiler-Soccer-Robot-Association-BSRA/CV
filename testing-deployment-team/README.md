@@ -1,6 +1,6 @@
 # testing-deployment-team
 
-**Members:** Hossein Hatami Yazd
+**Members:** Hossein Hatami Yazd, Henry (@ThunderDinInteractive) (shared with integration-team)
 
 Owns evaluation, robustness testing, benchmarking, optimization research,
 and pulling the semester's work into one documented, reproducible result.
@@ -8,6 +8,8 @@ See [ARCHITECTURE.md](../ARCHITECTURE.md) for how this touches both
 detection-team and integration-team's output.
 
 ## Semester roadmap
+
+Progress markers reflect what's visible in the repo as of Oct 1.
 
 ### September — Fundamentals & setup
 
@@ -17,14 +19,15 @@ detection-team and integration-team's output.
   the definitions of precision, recall, and mAP — you'll be computing
   these for real starting in October. Run an existing pretrained
   detector yourself and manually inspect its output.
-- **Week 3** — Sketch the evaluation harness's interface (what it takes
+- **Week 3** *(done)* — Sketch the evaluation harness's interface (what it takes
   in, what it reports) so it's ready to point at detection-team's first
   model. *End-of-September milestone (team-wide): everyone can
   load/manipulate images with OpenCV and run an existing detector.*
 
 ### October — First RoboCup detection system
 
-- **Week 4** — Build the evaluation harness (`tests/eval_harness.py`):
+- **Week 4** *(done: precision, recall, mAP@0.5 and ms/frame, running in CI)* —
+  Build the evaluation harness (`tests/eval_harness.py`):
   given weights and a dataset split, compute precision/recall/mAP.
   Coordinate with detection-team's `training/eval.py` so you're not
   building two versions of the same thing.
@@ -95,7 +98,8 @@ With no arguments it runs the bundled `dummy_detector.py` (simple color
 thresholding, no model) over the tiny synthetic dataset in
 `tests/fixtures/sample_dataset/`, and:
 
-1. Computes precision and recall at IoU 0.5, plus mean ms/frame.
+1. Computes precision, recall and mAP (per-class AP, averaged over
+   classes that have ground truth) at IoU 0.5, plus mean ms/frame.
 2. Writes the results to `benchmarks/results/latest.json`.
 3. Compares recall against `benchmarks/baseline.json` and exits nonzero
    if it dropped by more than `--max-recall-drop` (default `0.05`).
@@ -118,6 +122,28 @@ and `tests/fixtures/generate_sample_dataset.py` for a worked example.
 keyword it's free to ignore — the same interface
 `detection-team/inference/detector.py`'s `Detector` already has, so no
 adapter code is needed once that's implemented for real.
+
+### Stand-in: pretrained COCO YOLO
+
+Until detection-team has a trained checkpoint,
+`tests/pretrained_yolo_detector.py` wraps the same stock COCO weights
+`scripts/quickstart.py` uses, so the harness can be proven on a real
+model and real images now (ARCHITECTURE.md handoff #2). COCO has no
+RoboCup classes, so it only keeps `sports ball` → `ball` and drops the
+rest. Its numbers are an interim baseline for the harness, not a
+preview of our own model.
+
+```bash
+python testing-deployment-team/tests/eval_harness.py \
+    --detector-file testing-deployment-team/tests/pretrained_yolo_detector.py \
+    --detector-class PretrainedYoloDetector \
+    --manifest path/to/real/manifest.yaml \
+    --no-baseline-check
+```
+
+Needs `ultralytics` from the root `requirements.txt`. The manifest
+needs real images with hand-checked ball boxes; a few dozen frames
+from TORSO-21 (or our own footage) is enough for this purpose.
 
 Once a real model exists, re-run the harness against a real held-out
 set and overwrite `benchmarks/baseline.json` with those numbers (commit

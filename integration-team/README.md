@@ -1,6 +1,6 @@
 # integration-team
 
-**Members:** Phil
+**Members:** Phil, Henry (@ThunderDinInteractive) (shared with testing-deployment-team)
 
 Owns calibration, geometry, and ROS 2 packaging: turning detection-team's
 image-space `Detection`s into robot-relative `PerceptionObject`s (see
@@ -9,9 +9,12 @@ See [ARCHITECTURE.md](../ARCHITECTURE.md) for the full pipeline.
 
 ## Semester roadmap
 
+Progress markers reflect what's visible in the repo as of Oct 1.
+
 ### September — Fundamentals & setup
 
-- **Week 1** — Install ROS 2 (ros:jazzy-perception) and get a workspace building. Also install
+- **Week 1** *(in progress: ROS 2 image chosen; workspace not in the repo yet)* —
+  Install ROS 2 (ros:jazzy-perception) and get a workspace building. Also install
   the root [requirements.txt](../requirements.txt) so you can read
   detection-team's output types.
 - **Week 2** — Review ROS 2 image/message concepts: topics, message

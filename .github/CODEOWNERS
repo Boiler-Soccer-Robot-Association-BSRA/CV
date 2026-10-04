@@ -6,11 +6,11 @@
 # subteam's own README, for the human-readable version):
 #   data-team:               Gabriela (@gabircs15), Josephine (@jmislay)
 #   detection-team:          Suhaas (@Suhaas1218), Aditya Mitra (@AdityaMitra0)
-#   integration-team:        Phil (@Phil-Liao)
-#   testing-deployment-team: Hossein Hatami Yazd (@hhatamiy)
+#   integration-team:        Phil (@Phil-Liao), Henry (@ThunderDinInteractive)
+#   testing-deployment-team: Hossein Hatami Yazd (@hhatamiy), Henry (@ThunderDinInteractive)
 
 /data-team/               @gabircs15 @jmislay
 /detection-team/          @Suhaas1218 @AdityaMitra0
-/integration-team/        @Phil-Liao
-/testing-deployment-team/ @hhatamiy
+/integration-team/        @Phil-Liao @ThunderDinInteractive
+/testing-deployment-team/ @hhatamiy @ThunderDinInteractive
 /shared/                  @gabircs15 @Suhaas1218 @Phil-Liao

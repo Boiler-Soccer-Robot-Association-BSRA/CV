@@ -69,4 +69,4 @@ settings (Settings → Branches) if a PR seems to be missing that
 requirement.
 
 Budget time for review rather than expecting an instant merge — this is
-a six-person team, not a solo project.
+a seven-person team, not a solo project.

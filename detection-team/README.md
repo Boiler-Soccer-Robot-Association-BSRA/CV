@@ -9,17 +9,23 @@ projects into robot-relative positions — see
 
 ## Semester roadmap
 
+Progress markers reflect what's visible in the repo as of Oct 4.
+
 ### September — Fundamentals & setup
 
-- **Week 1** — Install and verify the OpenCV/PyTorch/Ultralytics
+- **Week 1** *(in progress: pretrained YOLO smoke test passes on
+  `training/test-images/street_test.jpg`; each member still needs to
+  run it on their own machine)* — Install and verify the OpenCV/PyTorch/Ultralytics
   environment (root `requirements.txt`); run a pretrained YOLO model on
   a sample image as a smoke test.
-- **Week 2** — OpenCV fundamentals: images, pixels, color spaces,
+- **Week 2** *(individual learning — not visible in the repo)* —
+  OpenCV fundamentals: images, pixels, color spaces,
   filtering, contours, transformations. Write a few basic OpenCV
   programs, then move on to intro CNNs/object detection, intro YOLO,
   and PyTorch basics — including how bounding boxes and confidence
   scores work.
-- **Week 3** — Write basic bounding-box + confidence visualization
+- **Week 3** *(done: `inference/visualize.py`, see
+  [Visualizing detections](#visualizing-detections))* — Write basic bounding-box + confidence visualization
   scripts against the pretrained model's output. *End-of-September
   milestone (team-wide): everyone can load/manipulate images with
   OpenCV and run an existing detector.*
@@ -74,6 +80,7 @@ detection-team/
 ├── inference/    # reusable inference module (no notebook-only code)
 ├── notebooks/    # exploratory training/eval notebooks
 ├── models/       # trained weights (gitignored, do not commit)
+├── runs/         # annotated images and other run output (gitignored)
 └── README.md
 ```
 
@@ -81,6 +88,30 @@ detection-team/
 
 Uses the root [requirements.txt](../requirements.txt) (ultralytics,
 opencv-python, torch, numpy) — no additional dependencies expected.
+
+## Visualizing detections
+
+`inference/visualize.py` draws each detection's box and a
+`class_name 0.87` confidence label on an image. Run it on one or more
+images or folders; annotated copies go to `runs/visualize/` and a
+per-image summary (class, confidence, box) is printed:
+
+```bash
+python detection-team/inference/visualize.py detection-team/training/test-images/
+python detection-team/inference/visualize.py frame.jpg --conf 0.5          # hide low-confidence boxes
+python detection-team/inference/visualize.py frame.jpg --weights best.pt   # a trained checkpoint
+```
+
+It defaults to the same stock COCO `yolov8n.pt` weights as
+`scripts/quickstart.py`, so class names are COCO's (`person`,
+`sports ball`, ...) until we point it at our own model. Trying a few
+`--conf` values on the same image is a quick way to see what the
+confidence threshold actually trades off.
+
+From code, `draw_detections(image, detections)` takes any
+`list[Detection]` — from the dummy detector, the pretrained model, or
+`Detector` once it's implemented — which is handy for the Week 6
+failure-case write-ups for data-team.
 
 ## First task
 

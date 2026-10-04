@@ -1,5 +1,7 @@
 ultralytics==8.4.157
 opencv-python==4.14.0.94
 torch==2.14.0
-numpy==2.2.6
+# ultralytics rejects numpy 2.0-2.3.4 on macOS and opencv needs >=2, so this
+# must stay >=2.3.5 (which needs Python >=3.11) - check macOS before changing it.
+numpy==2.3.5
 pyyaml==6.0.3

@@ -52,8 +52,11 @@ constants, config loading, common types).
 
 ## Getting set up
 
-You'll need Python 3.10 (pinned in [`.python-version`](.python-version);
-tested on Apple Silicon Macs and Linux). Everyone should work inside a
+You'll need Python 3.12 (pinned in [`.python-version`](.python-version);
+tested on Apple Silicon Macs and Linux). On a Mac, `brew install python@3.12`
+if `python3.12` isn't already on your PATH. If you set up a `venv/` back
+when this said 3.10, delete it and re-run `./scripts/setup.sh` — the
+pinned packages can't all install on macOS + Python 3.10. Everyone should work inside a
 virtual environment so dependencies stay consistent across machines —
 `requirements.txt`/`requirements-dev.txt` pin exact versions for that
 reason, so `pip install` gives everyone the same environment.
@@ -76,7 +79,7 @@ git clone https://github.com/hhatamiy/BSRA-CV.git
 cd BSRA-CV
 
 # create and activate a virtual environment
-python3.10 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate   # on Windows: venv\Scripts\activate
 
 # install shared + dev dependencies

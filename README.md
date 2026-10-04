@@ -173,7 +173,7 @@ By the end of the semester, the team should ideally have:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full pull request
 workflow (pre-commit hooks, what to run before opening a PR, review
-requirements). Short version:
+expectations). Short version:
 
 * Work off feature branches, open a pull request before merging into `main`.
 * Keep large files (datasets, model weights) out of git. Use the `.gitignore` for that, and share large files through the [team drive folder](https://drive.google.com/drive/folders/1qa2ktrauYvNnrdFLqBTY9tBebvrS4sXG) instead.
@@ -190,9 +190,11 @@ hyphens instead of spaces, no ticket numbers needed for a club project:
 * `integration-team/camera-calibration`
 * `testing-deployment-team/eval-harness`
 
-`main` is protected: a pull request needs at least one approving review
-and a passing CI check (`.github/workflows/lint-test.yml`) before it can
-merge — budget time for that rather than expecting an instant merge.
+`main` is protected: a pull request needs a passing CI check
+(`.github/workflows/lint-test.yml`) before it can merge. An approving
+review isn't required — once CI is green you can merge your own PR —
+but give the owners of any other subteam's folder you touched a
+heads-up first. See [CONTRIBUTING.md](CONTRIBUTING.md#review).
 
 ## Meeting schedule
 

@@ -59,14 +59,21 @@ predate you installing them): `pre-commit run --all-files`.
 
 ## Review
 
-`main` is protected: every pull request needs **at least one approving
-review from someone other than the author**, plus a passing CI check,
-before it can merge. [.github/CODEOWNERS](.github/CODEOWNERS) lists who
-owns each folder — GitHub will suggest them as reviewers automatically.
-The author-can't-approve-their-own-PR part is enforced by GitHub itself
-once branch protection is turned on; see the repo's branch protection
-settings (Settings → Branches) if a PR seems to be missing that
-requirement.
+`main` is protected: a pull request can merge once its CI check
+(`lint-test`, from `.github/workflows/lint-test.yml`) passes. **An
+approving review is not required** — if CI is green, you can merge your
+own PR. Direct pushes to `main` are still off; everything goes through
+a PR so CI runs and there's a record of what changed.
 
-Budget time for review rather than expecting an instant merge — this is
-a six-person team, not a solo project.
+Reviews are still encouraged. [.github/CODEOWNERS](.github/CODEOWNERS)
+lists who owns each folder, and GitHub requests them automatically. If
+your PR touches another subteam's folder or `shared/`, tag its owners
+on the PR or post in the group chat before merging — you don't have to
+wait for them, but they shouldn't find out from a broken import. If
+someone leaves review comments after you've merged, address them in a
+follow-up PR.
+
+These rules are enforced by the repo's branch protection settings
+(Settings → Branches, admin access needed); if GitHub is blocking a
+merge that this section says should be allowed, the settings and this
+doc have drifted — tell the Computer Vision Lead.

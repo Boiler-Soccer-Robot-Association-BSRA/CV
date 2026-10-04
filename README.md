@@ -8,7 +8,7 @@ tells you what to read, in what order, and how to get set up.
 ## Quickstart
 
 ```bash
-git clone https://github.com/hhatamiy/BSRA-CV.git && cd BSRA-CV
+git clone https://github.com/Boiler-Soccer-Robot-Association-BSRA/CV.git BSRA-CV && cd BSRA-CV
 ./scripts/setup.sh && source venv/bin/activate   # one-command env setup
 pytest testing-deployment-team/tests/            # unit tests
 ruff check .                                     # lint
@@ -64,7 +64,7 @@ reason, so `pip install` gives everyone the same environment.
 One command:
 
 ```bash
-git clone https://github.com/hhatamiy/BSRA-CV.git
+git clone https://github.com/Boiler-Soccer-Robot-Association-BSRA/CV.git BSRA-CV
 cd BSRA-CV
 ./scripts/setup.sh          # creates venv/, installs deps, installs pre-commit hooks
 source venv/bin/activate    # do this in every new shell
@@ -75,7 +75,7 @@ Or by hand, if you want to see each step:
 
 ```bash
 # clone the repo
-git clone https://github.com/hhatamiy/BSRA-CV.git
+git clone https://github.com/Boiler-Soccer-Robot-Association-BSRA/CV.git BSRA-CV
 cd BSRA-CV
 
 # create and activate a virtual environment

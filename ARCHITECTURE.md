@@ -12,11 +12,11 @@ What's actually implemented today, not the roadmap:
 |---|---|---|
 | Shared types & config (`shared/`) | **Working** | `BoundingBox`, `Detection`, `Position2D`, `PerceptionObject` dataclasses and the YAML config loader are implemented and usable — see [Data contracts](#data-contracts) below. |
 | Data pipeline (`data-team/`) | **Not started** | `scripts/download.py`, `convert.py`, `split.py`, `augment.py` exist as CLI skeletons (argument parsing only, bodies raise `NotImplementedError`). No dataset has been downloaded or processed yet. |
-| Detection (`detection-team/`) | **Not started** | `training/train.py`, `training/eval.py`, `inference/detector.py` are skeletons; no model has been trained. [`scripts/quickstart.py`](scripts/quickstart.py) at the repo root runs a stock pretrained YOLO model directly as a stand-in — see its docstring for exactly what that does and doesn't prove. |
+| Detection (`detection-team/`) | **Not started** | `training/train.py`, `training/eval.py`, `inference/detector.py` are skeletons; no model has been trained. [`scripts/quickstart.py`](scripts/quickstart.py) at the repo root runs a stock pretrained YOLO model directly as a stand-in — see its docstring for exactly what that does and doesn't prove. `inference/visualize.py` draws any `list[Detection]` as boxes + confidence labels on an image, and its CLI runs that same stock pretrained model (or any YOLO weights) over images. |
 | Calibration (`integration-team/calibration/`) | **Not started** | `calibrate.py` is a skeleton; no camera has been calibrated. |
 | Ground-plane projection (`integration-team/geometry/`) | **Not started** | `projection.py` is a skeleton. |
 | ROS 2 packaging (`integration-team/ros2_nodes/`, `messages/`) | **Not started** | Node files and the message-conversion stub exist; no ROS 2 message schema has been defined yet. |
-| Evaluation & benchmarking (`testing-deployment-team/`) | **Partial** | `tests/eval_harness.py` is implemented: given a manifest + detector it computes precision/recall at IoU 0.5 and ms/frame, and gates on `benchmarks/baseline.json`. Runs today against a bundled dummy detector and tiny synthetic fixture dataset — swap in a real model and dataset once they exist. `benchmarks/inference_speed.py` and `deployment/export_onnx.py` are still skeletons. |
+| Evaluation & benchmarking (`testing-deployment-team/`) | **Partial** | `tests/eval_harness.py` is implemented: given a manifest + detector it computes precision/recall/mAP at IoU 0.5 and ms/frame, and gates on `benchmarks/baseline.json`. Runs in CI against a bundled dummy detector and tiny synthetic fixture dataset; `tests/pretrained_yolo_detector.py` wraps stock COCO YOLO as a stand-in for runs on real images. Swap in a real model and dataset once they exist. `benchmarks/inference_speed.py` and `deployment/export_onnx.py` are still skeletons. |
 
 > **Keep this current:** if you implement a stage, update its row in
 > this table in the same PR. A stale status table is worse than none.
@@ -216,9 +216,13 @@ flowchart LR
 
 ### A note worth a team conversation
 
+**Update:** Henry now splits his time between integration-team and
+testing-deployment-team, so neither is a one-person team anymore. The
+original note is kept below for context.
+
 Per [.github/CODEOWNERS](.github/CODEOWNERS), integration-team and
-testing-deployment-team are each currently staffed by one person,
-while data-team and detection-team have two each. Of those two
+testing-deployment-team were each staffed by one person,
+while data-team and detection-team had two each. Of those two
 one-person teams, integration-team is the one whose November output
 another team's roadmap is directly waiting on, in back-to-back weeks
 (row 7 above) with no buffer either week. data-team carries a similar

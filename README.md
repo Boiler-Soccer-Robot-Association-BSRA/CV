@@ -38,22 +38,25 @@ together and where each subteam's code plugs in.
 
 ## Subteams
 
-Six people across four subteams. Each folder has its own README with
+Seven people across four subteams. Each folder has its own README with
 that team's semester roadmap, folder layout, and first task. See
 [.github/CODEOWNERS](.github/CODEOWNERS) for who's on each one.
 
 - [data-team/](data-team/) — dataset acquisition, labeling, splits, augmentation (Gabriela, Josephine)
 - [detection-team/](detection-team/) — model training and the core detector (Suhaas, Aditya Mitra)
-- [integration-team/](integration-team/) — calibration, geometry, ROS 2 packaging (Phil)
-- [testing-deployment-team/](testing-deployment-team/) — evaluation, robustness, benchmarking, final packaging (Hossein)
+- [integration-team/](integration-team/) — calibration, geometry, ROS 2 packaging (Phil, Henry)
+- [testing-deployment-team/](testing-deployment-team/) — evaluation, robustness, benchmarking, final packaging (Hossein, Henry)
 
 Code shared across all four lives in [shared/](shared/) (class name
 constants, config loading, common types).
 
 ## Getting set up
 
-You'll need Python 3.10 (pinned in [`.python-version`](.python-version);
-tested on Apple Silicon Macs and Linux). Everyone should work inside a
+You'll need Python 3.12 (pinned in [`.python-version`](.python-version);
+tested on Apple Silicon Macs and Linux). On a Mac, `brew install python@3.12`
+if `python3.12` isn't already on your PATH. If you set up a `venv/` back
+when this said 3.10, delete it and re-run `./scripts/setup.sh` — the
+pinned packages can't all install on macOS + Python 3.10. Everyone should work inside a
 virtual environment so dependencies stay consistent across machines —
 `requirements.txt`/`requirements-dev.txt` pin exact versions for that
 reason, so `pip install` gives everyone the same environment.
@@ -76,7 +79,7 @@ git clone https://github.com/hhatamiy/BSRA-CV.git
 cd BSRA-CV
 
 # create and activate a virtual environment
-python3.10 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate   # on Windows: venv\Scripts\activate
 
 # install shared + dev dependencies
@@ -200,7 +203,7 @@ heads-up first. See [CONTRIBUTING.md](CONTRIBUTING.md#review).
 
 Weekly, Sundays 6–7 PM (subject to change).
 
-**Open question:** now that the team is six people, worth deciding
+**Open question:** now that the team is seven people, worth deciding
 whether to keep a single one-hour Sunday sync for everyone, or split
 into a shorter full-team check-in plus separate subteam meetings.
 Not decided yet — raise it at the next sync.

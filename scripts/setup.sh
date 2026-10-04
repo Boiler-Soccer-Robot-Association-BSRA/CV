@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # One-command dev environment setup. Works on Apple Silicon Macs and Linux
-# (anywhere python3.10 and venv are available).
+# (anywhere python3.12 and venv are available).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PYTHON_BIN="${PYTHON_BIN:-python3.10}"
+PYTHON_BIN="${PYTHON_BIN:-python3.12}"
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-  echo "python3.10 not found, falling back to python3 (see .python-version for the pinned version)" >&2
+  echo "python3.12 not found, falling back to python3 (see .python-version for the pinned version)" >&2
   PYTHON_BIN=python3
 fi
 

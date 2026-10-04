@@ -1,6 +1,10 @@
 {
   "precision": 1.0,
   "recall": 1.0,
+  "map50": 1.0,
+  "per_class_ap": {
+    "ball": 1.0
+  },
   "ms_per_frame": 0.2,
   "num_frames": 5,
   "num_predictions": 4,

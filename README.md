@@ -8,7 +8,7 @@ tells you what to read, in what order, and how to get set up.
 ## Quickstart
 
 ```bash
-git clone https://github.com/hhatamiy/BSRA-CV.git && cd BSRA-CV
+git clone https://github.com/Boiler-Soccer-Robot-Association-BSRA/CV.git BSRA-CV && cd BSRA-CV
 ./scripts/setup.sh && source venv/bin/activate   # one-command env setup
 pytest testing-deployment-team/tests/            # unit tests
 ruff check .                                     # lint
@@ -64,7 +64,7 @@ reason, so `pip install` gives everyone the same environment.
 One command:
 
 ```bash
-git clone https://github.com/hhatamiy/BSRA-CV.git
+git clone https://github.com/Boiler-Soccer-Robot-Association-BSRA/CV.git BSRA-CV
 cd BSRA-CV
 ./scripts/setup.sh          # creates venv/, installs deps, installs pre-commit hooks
 source venv/bin/activate    # do this in every new shell
@@ -75,7 +75,7 @@ Or by hand, if you want to see each step:
 
 ```bash
 # clone the repo
-git clone https://github.com/hhatamiy/BSRA-CV.git
+git clone https://github.com/Boiler-Soccer-Robot-Association-BSRA/CV.git BSRA-CV
 cd BSRA-CV
 
 # create and activate a virtual environment
@@ -178,7 +178,7 @@ By the end of the semester, the team should ideally have:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full pull request
 workflow (pre-commit hooks, what to run before opening a PR, review
-requirements). Short version:
+expectations). Short version:
 
 * Work off feature branches, open a pull request before merging into `main`.
 * Keep large files (datasets, model weights) out of git. Use the `.gitignore` for that, and share large files through the [team drive folder](https://drive.google.com/drive/folders/1qa2ktrauYvNnrdFLqBTY9tBebvrS4sXG) instead.
@@ -195,9 +195,11 @@ hyphens instead of spaces, no ticket numbers needed for a club project:
 * `integration-team/camera-calibration`
 * `testing-deployment-team/eval-harness`
 
-`main` is protected: a pull request needs at least one approving review
-and a passing CI check (`.github/workflows/lint-test.yml`) before it can
-merge — budget time for that rather than expecting an instant merge.
+`main` is protected: a pull request needs a passing CI check
+(`.github/workflows/lint-test.yml`) before it can merge. An approving
+review isn't required — once CI is green you can merge your own PR —
+but give the owners of any other subteam's folder you touched a
+heads-up first. See [CONTRIBUTING.md](CONTRIBUTING.md#review).
 
 ## Meeting schedule
 

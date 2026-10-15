@@ -1,8 +1,15 @@
-# Example training config, loaded via shared.config.load_config in train.py.
-# Copy this to a new file per experiment rather than editing it in place.
+# Example training config for training/train.py (see its docstring for what
+# each key means). Copy this to a new file per experiment, with a new
+# `name`, rather than editing an existing config in place — each config is
+# the record of how its model was made.
 
+name: my_experiment
 model: yolov8n.pt
-dataset: ../../data-team/datasets/ball/data.yaml
+dataset: ../../data-team/datasets/ball/data.yaml   # relative to this file
 epochs: 100
 imgsz: 640
 batch: 16
+seed: 0
+patience: 10
+device: null
+train_args: {}

@@ -131,7 +131,8 @@ def main() -> None:
     parser.add_argument("--dest", type=Path, default=DATASETS_DIR,
                         help="Directory to download into (a TORSO-21/ folder is created inside).")
     parser.add_argument("--subset", choices=["reality", "simulation", "all"], default="reality",
-                        help="Real-world images, Webots simulation images, or both. Default: reality.")
+                        help="Real images, Webots simulation images, or both. "
+                             "Default: reality.")
     parser.add_argument("--split", choices=["train", "test", "all"], default="all",
                         help="Which split to fetch. Default: all.")
     parser.add_argument("--base-url", default=BASE_URL, help=argparse.SUPPRESS)

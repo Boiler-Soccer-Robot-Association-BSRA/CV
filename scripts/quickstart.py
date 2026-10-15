@@ -3,22 +3,17 @@ currently exists.
 
 WHAT THIS RUNS TODAY:
   - Loads an image (yours, or ultralytics' bundled sample image).
-  - Runs a stock pretrained YOLO model via the `ultralytics` package.
-  - Converts the raw output into this repo's shared `Detection` type
-    (shared/types.py) and prints it.
-
-This intentionally bypasses detection-team/inference/detector.py and
-calls ultralytics directly, because that module is still a stub (see
-ARCHITECTURE.md's "Pipeline status" table) — as of writing, nothing in
-this repo can load or run a model end to end on its own yet. Once
-detector.py is implemented, this script should call it instead.
+  - Runs it through detection-team's `Detector`
+    (detection-team/inference/detector.py) with stock pretrained YOLO
+    weights, or a trained checkpoint via --weights.
+  - Prints the resulting shared `Detection`s (shared/types.py).
 
 WHAT THIS DOES NOT COVER (because the code doesn't exist yet):
-  - A RoboCup-trained model: this uses YOLO's stock pretrained COCO
-    weights, which do NOT know about soccer balls, goalposts, or field
-    lines the way a fine-tuned model eventually will. Detections you see
-    are whatever COCO classes (person, sports ball, etc.) happen to
-    appear in the image.
+  - A RoboCup-trained model, by default: without --weights this uses
+    YOLO's stock pretrained COCO weights, which do NOT know about soccer
+    balls, goalposts, or field lines the way a fine-tuned model does.
+    Detections you see are whatever COCO classes (person, sports ball,
+    etc.) happen to appear in the image.
   - Camera calibration / lens distortion correction
     (integration-team/calibration/).
   - Ground-plane projection to a robot-relative position
@@ -35,29 +30,23 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "detection-team" / "inference"))
 
-from shared.types import BoundingBox, Detection
+import cv2  # noqa: E402
+from detector import Detector  # noqa: E402
+
+from shared.types import Detection  # noqa: E402
+
+DEFAULT_WEIGHTS = "yolov8n.pt"  # pretrained COCO weights, auto-downloaded on first run
 
 
-def run(image_path: Path) -> list[Detection]:
-    from ultralytics import YOLO
-
-    model = YOLO("yolov8n.pt")  # pretrained COCO weights, auto-downloaded on first run
-    results = model.predict(source=str(image_path), verbose=False)
-
-    detections = []
-    for result in results:
-        for box in result.boxes:
-            x_min, y_min, x_max, y_max = box.xyxy[0].tolist()
-            detections.append(
-                Detection(
-                    class_name=result.names[int(box.cls[0])],
-                    confidence=float(box.conf[0]),
-                    bbox=BoundingBox(x_min=x_min, y_min=y_min, x_max=x_max, y_max=y_max),
-                )
-            )
-    return detections
+def run(image_path: Path, weights: str = DEFAULT_WEIGHTS) -> list[Detection]:
+    image = cv2.imread(str(image_path))
+    if image is None:
+        raise SystemExit(f"Could not read image: {image_path}")
+    return Detector(weights).predict(image)
 
 
 def default_sample_image() -> Path:
@@ -82,14 +71,22 @@ def main() -> None:
         default=None,
         help="Path to a sample image. If omitted, uses ultralytics' bundled sample image.",
     )
+    parser.add_argument(
+        "--weights",
+        default=DEFAULT_WEIGHTS,
+        help="YOLO weights to run (default: stock pretrained COCO yolov8n.pt).",
+    )
     args = parser.parse_args()
 
     image_path = args.image or default_sample_image()
     if not image_path.exists():
         parser.error(f"Image not found: {image_path}")
 
-    print(f"Running pretrained (stock COCO, not RoboCup-trained) YOLO on: {image_path}\n")
-    detections = run(image_path)
+    if args.weights == DEFAULT_WEIGHTS:
+        print(f"Running pretrained (stock COCO, not RoboCup-trained) YOLO on: {image_path}\n")
+    else:
+        print(f"Running {args.weights} on: {image_path}\n")
+    detections = run(image_path, args.weights)
 
     if not detections:
         print("No detections.")

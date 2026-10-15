@@ -25,7 +25,7 @@ Welcome to BSRA-CV! This is the order to read things in and get set up.
 ## 2. One-time setup
 
 ```bash
-git clone https://github.com/hhatamiy/BSRA-CV.git
+git clone https://github.com/Boiler-Soccer-Robot-Association-BSRA/CV.git BSRA-CV
 cd BSRA-CV
 ./scripts/setup.sh          # creates venv/, installs deps, installs pre-commit hooks
 source venv/bin/activate    # do this in every new shell

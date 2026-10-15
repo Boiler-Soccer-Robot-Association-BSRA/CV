@@ -124,6 +124,8 @@ def train(config_path: Path, overwrite: bool = False) -> Path:
 
     from ultralytics import YOLO
 
+    # Record the code as it was when the run started, not when it ended.
+    git = git_state()
     model = YOLO(config["model"])
     started = time.time()
     results = model.train(
@@ -153,7 +155,7 @@ def train(config_path: Path, overwrite: bool = False) -> Path:
         "config_path": str(config_path),
         "config": config,
         "dataset": dataset_info(data_yaml),
-        "git": git_state(),
+        "git": git,
         "versions": versions(),
         "train_duration_s": round(duration_s, 1),
         "run_dir": str(save_dir),

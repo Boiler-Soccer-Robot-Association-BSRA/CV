@@ -1,6 +1,10 @@
 """Train a YOLO model on a labeled dataset split.
 
     python detection-team/training/train.py detection-team/configs/ball_v1.yaml
+    python detection-team/training/train.py detection-team/configs/ball_v1.yaml --resume
+
+--resume continues an interrupted run (machine shut down, process killed)
+from runs/train/<name>/weights/last.pt instead of starting over.
 
 Everything about a run lives in its config (detection-team/configs/,
 loaded via shared.config.load_config) — nothing is hardcoded here. When
@@ -110,7 +114,7 @@ def versions() -> dict[str, str]:
     }
 
 
-def train(config_path: Path, overwrite: bool = False) -> Path:
+def train(config_path: Path, overwrite: bool = False, resume: bool = False) -> Path:
     config = resolve_config(config_path)
     name = config["name"]
     weights_out = MODELS_DIR / f"{name}.pt"
@@ -118,6 +122,9 @@ def train(config_path: Path, overwrite: bool = False) -> Path:
         raise SystemExit(
             f"{weights_out} already exists. Give the config a new `name`, or pass --overwrite."
         )
+    last = RUNS_DIR / name / "weights" / "last.pt"
+    if resume and not last.exists():
+        raise SystemExit(f"Nothing to resume: {last} doesn't exist.")
     data_yaml = Path(config["dataset"])
     if not data_yaml.exists():
         raise SystemExit(f"Dataset not found: {data_yaml}")
@@ -126,22 +133,27 @@ def train(config_path: Path, overwrite: bool = False) -> Path:
 
     # Record the code as it was when the run started, not when it ended.
     git = git_state()
-    model = YOLO(config["model"])
     started = time.time()
-    results = model.train(
-        data=str(data_yaml),
-        epochs=config["epochs"],
-        imgsz=config["imgsz"],
-        batch=config["batch"],
-        seed=config["seed"],
-        deterministic=True,
-        patience=config["patience"],
-        device=pick_device(config["device"]),
-        project=str(RUNS_DIR),
-        name=name,
-        exist_ok=overwrite,
-        **config["train_args"],
-    )
+    if resume:
+        # Ultralytics restores every training setting from the checkpoint.
+        model = YOLO(str(last))
+        results = model.train(resume=True)
+    else:
+        model = YOLO(config["model"])
+        results = model.train(
+            data=str(data_yaml),
+            epochs=config["epochs"],
+            imgsz=config["imgsz"],
+            batch=config["batch"],
+            seed=config["seed"],
+            deterministic=True,
+            patience=config["patience"],
+            device=pick_device(config["device"]),
+            project=str(RUNS_DIR),
+            name=name,
+            exist_ok=overwrite,
+            **config["train_args"],
+        )
     duration_s = time.time() - started
 
     save_dir = Path(model.trainer.save_dir)
@@ -158,6 +170,7 @@ def train(config_path: Path, overwrite: bool = False) -> Path:
         "git": git,
         "versions": versions(),
         "train_duration_s": round(duration_s, 1),
+        "resumed": resume,
         "run_dir": str(save_dir),
         "final_val_metrics": {
             k: float(v) for k, v in (getattr(results, "results_dict", None) or {}).items()
@@ -175,9 +188,14 @@ def main() -> None:
     parser.add_argument(
         "--overwrite", action="store_true", help="Replace models/<name>.pt if it exists."
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Continue an interrupted run from runs/train/<name>/weights/last.pt.",
+    )
     args = parser.parse_args()
 
-    weights = train(args.config, args.overwrite)
+    weights = train(args.config, args.overwrite, args.resume)
     print(f"Saved {weights} (and {weights.with_suffix('.json').name} with how it was made)")
 
 

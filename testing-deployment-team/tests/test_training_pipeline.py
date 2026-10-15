@@ -237,8 +237,11 @@ class FakeYOLO:
 
     def train(self, **kwargs):
         self.train_kwargs = kwargs
-        save_dir = Path(kwargs["project"]) / kwargs["name"]
-        (save_dir / "weights").mkdir(parents=True)
+        if kwargs.get("resume"):  # resuming: the run folder is where last.pt lives
+            save_dir = Path(self.weights).parent.parent
+        else:
+            save_dir = Path(kwargs["project"]) / kwargs["name"]
+        (save_dir / "weights").mkdir(parents=True, exist_ok=True)
         (save_dir / "weights" / "best.pt").write_bytes(b"fake weights")
         self.trainer = SimpleNamespace(save_dir=save_dir)
         return SimpleNamespace(results_dict={"metrics/mAP50(B)": 0.5})
@@ -270,3 +273,22 @@ def test_train_copies_best_weights_and_writes_provenance(tmp_path, monkeypatch):
 def test_pick_device_respects_explicit_choice():
     assert train_module.pick_device("cpu") == "cpu"
     assert train_module.pick_device(None) in ("mps", None)
+
+
+def test_resume_continues_from_last_checkpoint(tmp_path, monkeypatch):
+    import ultralytics
+
+    monkeypatch.setattr(ultralytics, "YOLO", FakeYOLO)
+    monkeypatch.setattr(train_module, "MODELS_DIR", tmp_path / "models")
+    monkeypatch.setattr(train_module, "RUNS_DIR", tmp_path / "runs")
+    monkeypatch.setattr(train_module, "REPO_ROOT", tmp_path)
+    config_path = write_config(tmp_path)
+
+    with pytest.raises(SystemExit, match="Nothing to resume"):
+        train_module.train(config_path, resume=True)
+
+    last = tmp_path / "runs" / "unit_test_model" / "weights" / "last.pt"
+    last.parent.mkdir(parents=True)
+    last.write_bytes(b"half trained")
+    weights = train_module.train(config_path, resume=True)
+    assert json.loads(weights.with_suffix(".json").read_text())["resumed"] is True

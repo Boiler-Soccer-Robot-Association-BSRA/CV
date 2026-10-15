@@ -1,6 +1,6 @@
 # data-team
 
-**Members:** Gabriela, Josephine
+**Members:** Gabriella, Josephine
 
 Owns dataset acquisition, labeling, splits, and augmentation for the
 perception pipeline. See [ARCHITECTURE.md](../ARCHITECTURE.md) for how

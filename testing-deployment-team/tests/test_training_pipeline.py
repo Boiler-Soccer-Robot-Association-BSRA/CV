@@ -102,15 +102,18 @@ def test_multiclass_build_uses_the_same_recordings_as_ball_only(tmp_path):
     assert names == {0: "ball", 1: "robot", 2: "goalpost", 3: "field_line", 4: "landmark"}
 
 
-def make_fake_torso(root: Path) -> None:
+def make_fake_torso(root: Path, layout: str = "download.py") -> None:
     """Two halves like the real download; recording "1" appears in both, as
-    real TORSO-21 recordings do."""
+    real TORSO-21 recordings do. `layout` is data-team's download.py layout
+    (reality/<half>/) or the hand-unzipped one (reality_<half>/<half>/)."""
     layout = {
         "train": {f"{rec}-img{i:03d}.png": rec for rec in ("1", "2", "3", "4") for i in range(3)},
         "test": {f"1-img9{i:02d}.png": "1" for i in range(2)},
     }
     for half, files in layout.items():
-        base = root / f"reality_{half}" / half
+        base = (
+            root / "reality" / half if layout == "download.py" else root / f"reality_{half}" / half
+        )
         (base / "images").mkdir(parents=True)
         entries = {}
         for i, name in enumerate(sorted(files)):
@@ -292,3 +295,17 @@ def test_resume_continues_from_last_checkpoint(tmp_path, monkeypatch):
     last.write_bytes(b"half trained")
     weights = train_module.train(config_path, resume=True)
     assert json.loads(weights.with_suffix(".json").read_text())["resumed"] is True
+
+
+def test_build_reads_both_torso_layouts(tmp_path):
+    for layout in ("download.py", "unzipped"):
+        torso = tmp_path / layout / "TORSO-21"
+        make_fake_torso(torso, layout)
+        info = placeholder.build(torso, tmp_path / layout / "out", 0.0, 0.0, 0, 10)
+        assert info["splits"]["train"]["images"] == 14
+
+
+def test_uses_data_teams_class_mapping():
+    import explore_torso21
+
+    assert placeholder.TORSO_TO_OURS is explore_torso21.TORSO_TO_OURS

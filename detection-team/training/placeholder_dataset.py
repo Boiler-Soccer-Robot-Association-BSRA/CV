@@ -20,11 +20,13 @@ How TORSO-21 labels become our classes (shared/classes.py):
     field_line   not produced: TORSO-21 only has pixel masks for lines, and
                  the team decided field lines stay out of the box detector
 
-Reads the real-world TORSO-21 download, expected at (override with
---torso-dir):
+Reads the real-world TORSO-21 download made by
+data-team/scripts/download.py (override the location with --torso-dir):
 
-    data-team/datasets/TORSO-21/reality_train/train/{annotations.yaml,images/}
-    data-team/datasets/TORSO-21/reality_test/test/{annotations.yaml,images/}
+    data-team/datasets/TORSO-21/reality/{train,test}/{annotations.yaml,images/}
+
+(The layout you get from unzipping train.zip / test.zip by hand,
+TORSO-21/reality_train/train/ and reality_test/test/, works too.)
 
 and writes a YOLO-format dataset (images are symlinked, not copied) to
 detection-team/datasets/placeholder_ball/ or placeholder_multiclass/
@@ -57,6 +59,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "data-team" / "scripts"))
 
 from shared.classes import BALL, CLASSES, GOALPOST, LANDMARK, ROBOT  # noqa: E402
 
@@ -68,14 +71,10 @@ MIN_BOX_PIXELS = 2
 # fraction of the image width so a detector has something to regress.
 LANDMARK_BOX_FRACTION = 0.05
 
-TORSO_TO_OURS = {
-    "ball": BALL,
-    "robot": ROBOT,
-    "goalpost": GOALPOST,
-    "L-Intersection": LANDMARK,
-    "T-Intersection": LANDMARK,
-    "X-Intersection": LANDMARK,
-}
+# data-team's TORSO-21 -> shared/classes.py mapping is the one source of
+# truth (data-team/README.md, "Mapping to our classes").
+from explore_torso21 import TORSO_TO_OURS  # noqa: E402
+
 SUPPORTED_CLASSES = (BALL, ROBOT, GOALPOST, LANDMARK)
 
 Box = tuple[float, float, float, float]
@@ -132,14 +131,14 @@ def load_torso(torso_dir: Path) -> dict[str, dict]:
     added "image_path" pointing at the file on disk."""
     images = {}
     for half in ("train", "test"):
-        root = torso_dir / f"reality_{half}" / half
-        annotations = root / "annotations.yaml"
-        if not annotations.exists():
+        candidates = [torso_dir / "reality" / half, torso_dir / f"reality_{half}" / half]
+        root = next((c for c in candidates if (c / "annotations.yaml").exists()), None)
+        if root is None:
             raise SystemExit(
-                f"Missing {annotations}. Download the real-world TORSO-21 set from "
-                "https://data.bit-bots.de/TORSO-21/reality/ (train.zip and test.zip) and "
-                f"unzip them into {torso_dir}/reality_train and {torso_dir}/reality_test."
+                f"No TORSO-21 real-world {half} set under {torso_dir}. Download it with: "
+                "python data-team/scripts/download.py --subset reality"
             )
+        annotations = root / "annotations.yaml"
         with annotations.open() as f:
             entries = yaml.load(f, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))["images"]
         for name, entry in entries.items():

@@ -78,7 +78,7 @@ data-team/
 
 ## Dataset schema
 
-Source: [TORSO-21](https://github.com/bit-bots/TORSO-21-dataset)
+Source: [TORSO-21](https://github.com/bit-bots/TORSO_21_dataset)
 (Bestmann et al., RoboCup 2021, MIT license). Background, how RoboCup
 imagery differs from COCO-style data, and the full gap analysis are in
 [docs/torso21-exploration.md](docs/torso21-exploration.md).

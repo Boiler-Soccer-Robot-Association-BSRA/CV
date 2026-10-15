@@ -123,6 +123,34 @@ keyword it's free to ignore — the same interface
 `detection-team/inference/detector.py`'s `Detector` has, so it plugs in
 directly with no adapter code.
 
+### Visual report: what it found vs. what it should have found
+
+Add `--report-dir` to any harness run to also get an HTML page you can
+open in a browser:
+
+```bash
+python testing-deployment-team/tests/eval_harness.py \
+    --report-dir testing-deployment-team/benchmarks/results/report
+open testing-deployment-team/benchmarks/results/report/index.html   # macOS; or double-click it
+```
+
+Every frame is drawn with the ground truth (what the detector *should*
+find) and the detector's predictions, colored by how the harness scored
+them:
+
+| On the image | Meaning |
+|---|---|
+| solid green box, `ball 0.87` | correct detection (true positive) |
+| solid red box, `FP ball 0.42` | false alarm (false positive) |
+| dashed orange box, `MISSED ball` | an expected object nothing matched (false negative) |
+| thin white box | ground truth that was found (under its green box) |
+
+The page shows the run's metrics up top, lists failures first, and has
+filter buttons for missed / false alarms / correct frames. It uses the
+harness's own matching (`match_frame_indices`), so every box on the page
+is exactly what went into the precision/recall/mAP numbers. Anything
+under `benchmarks/results/` is gitignored, so reports there stay local.
+
 ### Stand-in: pretrained COCO YOLO
 
 Until detection-team has a trained checkpoint,

@@ -99,14 +99,15 @@ def iou(a: BoundingBox, b: BoundingBox) -> float:
     return intersection / union if union > 0 else 0.0
 
 
-def match_frame_detailed(
+def match_frame_indices(
     predictions: list[Detection], ground_truth: list[dict], iou_threshold: float
-) -> tuple[list[tuple[Detection, bool]], int]:
+) -> tuple[list[tuple[Detection, int | None]], list[int]]:
     """Match one frame's predictions to its ground truth.
 
-    Returns ([(prediction, is_true_positive), ...], false_negatives).
-    Predictions are matched greedily, highest confidence first, each
-    ground-truth box at most once.
+    Returns ([(prediction, matched_ground_truth_index or None), ...],
+    [indices of ground-truth boxes nothing matched]). Predictions are
+    matched greedily, highest confidence first, each ground-truth box at
+    most once.
     """
     unmatched_gt = list(range(len(ground_truth)))
     matches = []
@@ -125,12 +126,21 @@ def match_frame_detailed(
                 best_idx = idx
 
         if best_idx is not None and best_iou >= iou_threshold:
-            matches.append((pred, True))
+            matches.append((pred, best_idx))
             unmatched_gt.remove(best_idx)
         else:
-            matches.append((pred, False))
+            matches.append((pred, None))
 
-    return matches, len(unmatched_gt)
+    return matches, unmatched_gt
+
+
+def match_frame_detailed(
+    predictions: list[Detection], ground_truth: list[dict], iou_threshold: float
+) -> tuple[list[tuple[Detection, bool]], int]:
+    """Like match_frame_indices, but returns
+    ([(prediction, is_true_positive), ...], false_negatives)."""
+    matches, unmatched_gt = match_frame_indices(predictions, ground_truth, iou_threshold)
+    return [(pred, idx is not None) for pred, idx in matches], len(unmatched_gt)
 
 
 def match_frame(
@@ -177,8 +187,17 @@ def average_precision(scored: list[tuple[float, bool]], num_ground_truth: int) -
 
 
 def run_benchmark(
-    manifest_path: Path, detector: DetectorProtocol, iou_threshold: float
+    manifest_path: Path,
+    detector: DetectorProtocol,
+    iou_threshold: float,
+    frame_records: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """Run `detector` over every frame in the manifest and compute metrics.
+
+    If `frame_records` is a list, one dict per frame is appended to it
+    (image_path, ground_truth, matches, missed, ms) — what eval_report.py
+    needs to draw each frame. Left None, nothing per-frame is kept.
+    """
     manifest = load_manifest(manifest_path)
     dataset_dir = manifest_path.parent
 
@@ -196,17 +215,29 @@ def run_benchmark(
 
         start = time.perf_counter()
         predictions = detector.predict(image)
-        frame_times_ms.append((time.perf_counter() - start) * 1000)
+        frame_ms = (time.perf_counter() - start) * 1000
+        frame_times_ms.append(frame_ms)
 
         ground_truth = entry.get("annotations", [])
-        matches, fn = match_frame_detailed(predictions, ground_truth, iou_threshold)
-        tp = sum(1 for _, is_tp in matches if is_tp)
+        matches, missed = match_frame_indices(predictions, ground_truth, iou_threshold)
+        tp = sum(1 for _, idx in matches if idx is not None)
 
         total_tp += tp
         total_fp += len(matches) - tp
-        total_fn += fn
-        for pred, is_tp in matches:
+        total_fn += len(missed)
+        for pred, idx in matches:
+            is_tp = idx is not None
             scored_by_class.setdefault(pred.class_name, []).append((pred.confidence, is_tp))
+        if frame_records is not None:
+            frame_records.append(
+                {
+                    "image_path": image_path,
+                    "ground_truth": ground_truth,
+                    "matches": matches,
+                    "missed": missed,
+                    "ms": frame_ms,
+                }
+            )
         for gt in ground_truth:
             ground_truth_by_class[gt["class_name"]] = (
                 ground_truth_by_class.get(gt["class_name"], 0) + 1
@@ -264,12 +295,19 @@ def main() -> int:
         action="store_true",
         help="Run and report, but don't gate on the baseline.",
     )
+    parser.add_argument(
+        "--report-dir",
+        type=Path,
+        default=None,
+        help="Also write a visual HTML report (ground truth vs. predictions per frame) here.",
+    )
     args = parser.parse_args()
 
     detector_class = load_detector_class(args.detector_file, args.detector_class)
     detector = detector_class(weights_path=args.weights)
 
-    results = run_benchmark(args.manifest, detector, args.iou_threshold)
+    frame_records = [] if args.report_dir else None
+    results = run_benchmark(args.manifest, detector, args.iou_threshold, frame_records)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w") as f:
@@ -282,6 +320,19 @@ def main() -> int:
         f"ms/frame={results['ms_per_frame']:.2f} frames={results['num_frames']}"
     )
     print(f"Results written to {args.output}")
+
+    if args.report_dir:
+        from eval_report import write_report
+
+        report = write_report(
+            results,
+            frame_records,
+            args.report_dir,
+            detector_name=f"{args.detector_file.name}:{args.detector_class}",
+            weights=str(args.weights) if args.weights else None,
+            manifest=str(args.manifest),
+        )
+        print(f"Visual report written to {report}")
 
     if args.no_baseline_check:
         return 0

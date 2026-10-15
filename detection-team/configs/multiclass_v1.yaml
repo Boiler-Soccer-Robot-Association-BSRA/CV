@@ -1,0 +1,17 @@
+# First multi-class detector: ball, robot, goalpost and landmark (field-line
+# intersections). field_line is deliberately not trained — the team decided
+# field lines stay out of the box detector (TORSO-21 only has line masks).
+# Trained on the TEMPORARY TORSO-21 placeholder split, built with:
+#   python detection-team/training/placeholder_dataset.py --classes ball robot goalpost landmark
+# Its test split holds out the same recordings as ball_v1's, so ball scores
+# are directly comparable.
+name: multiclass_v1
+model: yolov8n.pt
+dataset: ../datasets/placeholder_multiclass/data.yaml
+epochs: 40
+imgsz: 640
+batch: 16
+seed: 0
+patience: 10
+device: null
+train_args: {}

@@ -127,8 +127,10 @@ def catalog(images: dict) -> None:
     for t in sorted(set(present) | set(absent)):
         imgs_with = sum(1 for c in per_image[t] if c) if t in per_image else 0
         pts = ", ".join(f"{k}pt x{v}" for k, v in sorted(n_points[t].items()))
-        print(f"{t:16s} {present[t]:8d} {imgs_with:8d} {absent[t]:10d} "
-              f"{blurred[t]:8d} {concealed[t]:9d}  {pts}")
+        print(
+            f"{t:16s} {present[t]:8d} {imgs_with:8d} {absent[t]:10d} "
+            f"{blurred[t]:8d} {concealed[t]:9d}  {pts}"
+        )
 
     if robot_color:
         print("\nRobot team colors:", dict(robot_color.most_common()))
@@ -204,8 +206,9 @@ def draw(split_dir: Path, name: str, info: dict) -> np.ndarray:
         if ann.get("concealed"):
             label += " (conc)"
         x, y = int(pts[:, 0].min()), int(pts[:, 1].min())
-        cv2.putText(img, label, (x, max(12, y - 4)), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.45, color, 1, cv2.LINE_AA)
+        cv2.putText(
+            img, label, (x, max(12, y - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA
+        )
     return img
 
 
@@ -214,8 +217,9 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("split_dir", type=Path, help="Folder containing annotations.yaml")
-    parser.add_argument("--viz", type=int, default=0, metavar="N",
-                        help="Draw labels on N random images")
+    parser.add_argument(
+        "--viz", type=int, default=0, metavar="N", help="Draw labels on N random images"
+    )
     parser.add_argument("--mask-sample", type=int, default=50, help="Masks to scan for colors")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()

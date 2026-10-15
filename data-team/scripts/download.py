@@ -128,13 +128,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--dest", type=Path, default=DATASETS_DIR,
-                        help="Directory to download into (a TORSO-21/ folder is created inside).")
-    parser.add_argument("--subset", choices=["reality", "simulation", "all"], default="reality",
-                        help="Real images, Webots simulation images, or both. "
-                             "Default: reality.")
-    parser.add_argument("--split", choices=["train", "test", "all"], default="all",
-                        help="Which split to fetch. Default: all.")
+    parser.add_argument(
+        "--dest",
+        type=Path,
+        default=DATASETS_DIR,
+        help="Directory to download into (a TORSO-21/ folder is created inside).",
+    )
+    parser.add_argument(
+        "--subset",
+        choices=["reality", "simulation", "all"],
+        default="reality",
+        help="Real images, Webots simulation images, or both. Default: reality.",
+    )
+    parser.add_argument(
+        "--split",
+        choices=["train", "test", "all"],
+        default="all",
+        help="Which split to fetch. Default: all.",
+    )
     parser.add_argument("--base-url", default=BASE_URL, help=argparse.SUPPRESS)
     parser.add_argument("--dry-run", action="store_true", help="List files, don't download.")
     parser.add_argument("--no-extract", action="store_true", help="Keep .zip files packed.")
@@ -144,16 +155,18 @@ def main() -> None:
     out_root = args.dest / "TORSO-21"
 
     try:
-        files = [u for u in walk(base) if wanted(u[len(base):], args.subset, args.split)]
+        files = [u for u in walk(base) if wanted(u[len(base) :], args.subset, args.split)]
     except OSError as exc:  # network errors, 403s, etc.
-        sys.exit(f"Could not list {base}: {exc}\n"
-                 "Check your connection, or download manually from that URL.")
+        sys.exit(
+            f"Could not list {base}: {exc}\n"
+            "Check your connection, or download manually from that URL."
+        )
     if not files:
         sys.exit(f"Nothing matched --subset {args.subset} --split {args.split} at {base}")
 
     print(f"{len(files)} file(s) -> {out_root}")
     for url in files:
-        rel = urllib.parse.unquote(url[len(base):])
+        rel = urllib.parse.unquote(url[len(base) :])
         dest = out_root / rel
         print(rel)
         if args.dry_run:

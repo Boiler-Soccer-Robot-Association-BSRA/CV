@@ -2,11 +2,11 @@
 
 `draw_detections(image, detections)` works on any `list[Detection]`
 (shared/types.py) — the dummy detector, stock pretrained YOLO, or our own
-trained model once `detector.py` is implemented — so the same picture
+trained model — so the same picture
 can be used to eyeball model output, share failure cases with data-team,
 or sanity-check what integration-team is being handed.
 
-Run as a script, it runs YOLO over one or more images and writes an
+Run as a script, it runs `Detector` (detector.py) over one or more images and writes an
 annotated copy of each, plus a per-image confidence summary:
 
     python detection-team/inference/visualize.py \\
@@ -18,11 +18,9 @@ annotated copy of each, plus a per-image confidence summary:
     # a trained checkpoint instead of the stock COCO weights
     python detection-team/inference/visualize.py frame.jpg --weights path/to/best.pt
 
-Like scripts/quickstart.py, the script calls ultralytics directly
-because detector.py is still a stub (see ARCHITECTURE.md's "Pipeline
-status" table). Once detector.py is implemented, `run_yolo` should call
-it instead. With the default stock COCO weights, class names are COCO's
-(person, sports ball, ...), not ours from shared/classes.py.
+With the default stock COCO weights, class names are COCO's (person,
+sports ball, ...), not ours from shared/classes.py; a model trained with
+training/train.py reports ours.
 """
 
 import argparse
@@ -34,9 +32,10 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from shared.classes import CLASSES  # noqa: E402
-from shared.types import BoundingBox, Detection  # noqa: E402
+from shared.types import Detection  # noqa: E402
 
 DEFAULT_WEIGHTS = "yolov8n.pt"  # same stock COCO weights as scripts/quickstart.py
 DEFAULT_OUT_DIR = Path(__file__).resolve().parents[1] / "runs" / "visualize"
@@ -112,27 +111,6 @@ def draw_detections(
     return canvas
 
 
-def yolo_results_to_detections(results) -> list[Detection]:
-    """Convert ultralytics `Results` into shared `Detection`s, keeping the
-    model's own class names."""
-    detections = []
-    for result in results:
-        for box in result.boxes:
-            x_min, y_min, x_max, y_max = (float(v) for v in box.xyxy[0].tolist())
-            detections.append(
-                Detection(
-                    class_name=result.names[int(box.cls[0])],
-                    confidence=float(box.conf[0]),
-                    bbox=BoundingBox(x_min=x_min, y_min=y_min, x_max=x_max, y_max=y_max),
-                )
-            )
-    return detections
-
-
-def run_yolo(model, image: np.ndarray, conf: float) -> list[Detection]:
-    return yolo_results_to_detections(model.predict(source=image, conf=conf, verbose=False))
-
-
 def collect_images(paths: list[Path]) -> list[Path]:
     images = []
     for path in paths:
@@ -175,9 +153,9 @@ def main() -> None:
     if not image_paths:
         parser.error("No images found.")
 
-    from ultralytics import YOLO
+    from detector import Detector
 
-    model = YOLO(args.weights)
+    detector = Detector(args.weights, conf=args.conf)
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     for path in image_paths:
@@ -185,7 +163,7 @@ def main() -> None:
         if image is None:
             print(f"{path}: could not read, skipping")
             continue
-        detections = run_yolo(model, image, args.conf)
+        detections = detector.predict(image)
         out_path = args.out_dir / f"{path.stem}_annotated{path.suffix}"
         cv2.imwrite(str(out_path), draw_detections(image, detections))
         print(f"{path} -> {out_path}\n{summarize(detections)}\n")

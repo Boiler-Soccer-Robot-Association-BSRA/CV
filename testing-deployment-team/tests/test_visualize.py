@@ -1,11 +1,8 @@
-"""Tests for detection-team/inference/visualize.py's drawing and YOLO
-output conversion. Uses fake ultralytics results, so no torch or weights
-are needed."""
+"""Tests for detection-team/inference/visualize.py's drawing helpers."""
 
 import importlib.util
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 
@@ -70,22 +67,6 @@ def test_class_colors_are_stable_and_distinct_for_our_classes():
     colors = [visualize.class_color(name) for name in CLASSES]
     assert len(set(colors)) == len(CLASSES)
     assert visualize.class_color("sports ball") == visualize.class_color("sports ball")
-
-
-def fake_box(cls: int, conf: float, xyxy: list[float]) -> SimpleNamespace:
-    # Mirrors the tensor shapes ultralytics uses: box.cls[0], box.conf[0], box.xyxy[0].tolist()
-    return SimpleNamespace(cls=[cls], conf=[conf], xyxy=[SimpleNamespace(tolist=lambda: xyxy)])
-
-
-def test_yolo_results_to_detections_keeps_model_class_names():
-    result = SimpleNamespace(
-        names={0: "person", 32: "sports ball"},
-        boxes=[fake_box(32, 0.75, [1.0, 2.0, 3.0, 4.0]), fake_box(0, 0.5, [5.0, 6.0, 7.0, 8.0])],
-    )
-    detections = visualize.yolo_results_to_detections([result])
-    assert [d.class_name for d in detections] == ["sports ball", "person"]
-    assert detections[0].confidence == 0.75
-    assert detections[0].bbox == BoundingBox(x_min=1.0, y_min=2.0, x_max=3.0, y_max=4.0)
 
 
 def test_collect_images_expands_folders_and_skips_non_images(tmp_path):

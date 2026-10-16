@@ -12,11 +12,11 @@ What's actually implemented today, not the roadmap:
 |---|---|---|
 | Shared types & config (`shared/`) | **Working** | `BoundingBox`, `Detection`, `Position2D`, `PerceptionObject` dataclasses and the YAML config loader are implemented and usable — see [Data contracts](#data-contracts) below. |
 | Data pipeline (`data-team/`) | **Not started** | `scripts/download.py`, `convert.py`, `split.py`, `augment.py` exist as CLI skeletons (argument parsing only, bodies raise `NotImplementedError`). No dataset has been downloaded or processed yet. |
-| Detection (`detection-team/`) | **Not started** | `training/train.py`, `training/eval.py`, `inference/detector.py` are skeletons; no model has been trained. [`scripts/quickstart.py`](scripts/quickstart.py) at the repo root runs a stock pretrained YOLO model directly as a stand-in — see its docstring for exactly what that does and doesn't prove. `inference/visualize.py` draws any `list[Detection]` as boxes + confidence labels on an image, and its CLI runs that same stock pretrained model (or any YOLO weights) over images. |
+| Detection (`detection-team/`) | **Working (ball)** | `inference/detector.py`'s `Detector` turns a BGR frame into `list[Detection]` for any YOLO weights; `scripts/quickstart.py`, `inference/visualize.py` and the eval harness all run through it. `training/train.py` / `training/eval.py` train and evaluate from a config. **`ball_v1`** (trained on a temporary TORSO-21 placeholder split) reaches 0.90 recall / 0.80 precision at IoU 0.5 on 12 held-out recordings at 33 FPS on a MacBook CPU (conf 0.20) — see [detection-team results](detection-team/README.md#results). Weights aren't in git (share them via the team drive). Multi-class (`multiclass_v1`: ball, robot, goalpost, landmark) is set up but not trained yet; field_line is intentionally not in the box detector. |
 | Calibration (`integration-team/calibration/`) | **Not started** | `calibrate.py` is a skeleton; no camera has been calibrated. |
 | Ground-plane projection (`integration-team/geometry/`) | **Not started** | `projection.py` is a skeleton. |
 | ROS 2 packaging (`integration-team/ros2_nodes/`, `messages/`) | **Not started** | Node files and the message-conversion stub exist; no ROS 2 message schema has been defined yet. |
-| Evaluation & benchmarking (`testing-deployment-team/`) | **Partial** | `tests/eval_harness.py` is implemented: given a manifest + detector it computes precision/recall/mAP at IoU 0.5 and ms/frame, and gates on `benchmarks/baseline.json`. Runs in CI against a bundled dummy detector and tiny synthetic fixture dataset; `tests/pretrained_yolo_detector.py` wraps stock COCO YOLO as a stand-in for runs on real images. Swap in a real model and dataset once they exist. `benchmarks/inference_speed.py` and `deployment/export_onnx.py` are still skeletons. |
+| Evaluation & benchmarking (`testing-deployment-team/`) | **Partial** | `tests/eval_harness.py` is implemented: given a manifest + detector it computes precision/recall/mAP at IoU 0.5 and ms/frame, and gates on `benchmarks/baseline.json`; `--report-dir` also writes a visual HTML report (`tests/eval_report.py`) drawing every frame's ground truth vs. predictions as correct / false alarm / missed. Runs in CI against a bundled dummy detector and tiny synthetic fixture dataset; `tests/pretrained_yolo_detector.py` wraps stock COCO YOLO as a stand-in for runs on real images. Swap in a real model and dataset once they exist. `benchmarks/inference_speed.py` and `deployment/export_onnx.py` are still skeletons. |
 
 > **Keep this current:** if you implement a stage, update its row in
 > this table in the same PR. A stale status table is worse than none.
@@ -194,6 +194,16 @@ most. Rows marked "lower risk" are also same-week, but the consuming
 team has a reasonable independent starting point already (an existing
 type definition, general-purpose work, a stand-in artifact already in
 the repo), so a one-week slip there is easier to absorb.
+
+### Handoff status (as of Oct 15)
+
+| # | Status |
+|---|---|
+| 1 | **Slipped.** data-team's ball split hasn't started (`split.py` is still a stub). Mitigation in use: detection-team trains on a temporary TORSO-21 placeholder (`detection-team/training/placeholder_dataset.py`) in the same layout data-team's split should produce — see detection-team's [Dataset contract](detection-team/README.md#dataset-contract). |
+| 2 | **Delivered.** `ball_v1` is trained; the eval harness runs on it through `detection-team/training/eval.py` (results in detection-team's README). |
+| 4, 5 | **Mitigated early.** The placeholder also builds robot / goalpost / landmark labels from TORSO-21 (`--classes`), so multi-class training isn't waiting on data-team's Week 7–8 labels. field_line stays out of the box detector (team decision). |
+
+Update this table as handoffs land, same as the rest of this section.
 
 ### November's dependency chain
 

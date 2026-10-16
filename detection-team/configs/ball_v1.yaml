@@ -1,0 +1,14 @@
+# First ball detector. Trained on the TEMPORARY TORSO-21 placeholder split
+# (training/placeholder_dataset.py) until data-team's real split exists —
+# when it does, copy this to ball_v2.yaml pointed at their data.yaml rather
+# than editing this file, so ball_v1 stays reproducible.
+name: ball_v1
+model: yolov8n.pt
+dataset: ../datasets/placeholder_ball/data.yaml
+epochs: 30
+imgsz: 640
+batch: 16
+seed: 0
+patience: 10
+device: null
+train_args: {}

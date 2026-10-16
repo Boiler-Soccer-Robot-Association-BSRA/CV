@@ -17,7 +17,7 @@ this feeds into detection-team.
   contain, how RoboCup imagery differs from general-purpose datasets
   (field colors, lighting, camera angles), and how bounding-box labels
   are represented. Download and explore the
-  [TORSO-21](https://github.com/bit-bots/TORSO-21-dataset) dataset,
+  [TORSO-21](https://github.com/bit-bots/TORSO_21_dataset) dataset,
   catalog its classes and annotation format, and note what's missing
   for the classes we ultimately need (`shared/classes.py`: ball, robot,
   goalpost, field_line, landmark).
@@ -29,7 +29,9 @@ this feeds into detection-team.
 
 - **Week 4** — Build the train/val/test split script (`scripts/split.py`)
   against the ball subset of the dataset; agree on a fixed random seed
-  so splits are reproducible.
+  so splits are reproducible. Split by recording, not by image, and
+  produce the layout in detection-team's
+  [Dataset contract](../detection-team/README.md#dataset-contract).
 - **Week 5** — Implement data augmentation (`scripts/augment.py`):
   lighting changes, blur, crop/scale.
 - **Week 6** — Work with detection-team and testing-deployment-team on
@@ -76,7 +78,7 @@ data-team/
 
 ## Dataset schema
 
-Source: [TORSO-21](https://github.com/bit-bots/TORSO-21-dataset)
+Source: [TORSO-21](https://github.com/bit-bots/TORSO_21_dataset)
 (Bestmann et al., RoboCup 2021, MIT license). Background, how RoboCup
 imagery differs from COCO-style data, and the full gap analysis are in
 [docs/torso21-exploration.md](docs/torso21-exploration.md).

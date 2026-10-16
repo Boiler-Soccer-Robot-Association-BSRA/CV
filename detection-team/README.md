@@ -9,13 +9,13 @@ projects into robot-relative positions — see
 
 ## Semester roadmap
 
-Progress markers reflect what's visible in the repo as of Oct 4.
+Progress markers reflect what's visible in the repo as of Oct 15.
 
 ### September — Fundamentals & setup
 
-- **Week 1** *(in progress: pretrained YOLO smoke test passes on
-  `training/test-images/street_test.jpg`; each member still needs to
-  run it on their own machine)* — Install and verify the OpenCV/PyTorch/Ultralytics
+- **Week 1** *(done: `./scripts/setup.sh` + `scripts/quickstart.py`
+  verified on Python 3.12 / Apple Silicon, smoke test passes on
+  `training/test-images/street_test.jpg`)* — Install and verify the OpenCV/PyTorch/Ultralytics
   environment (root `requirements.txt`); run a pretrained YOLO model on
   a sample image as a smoke test.
 - **Week 2** *(individual learning — not visible in the repo)* —
@@ -32,11 +32,15 @@ Progress markers reflect what's visible in the repo as of Oct 4.
 
 ### October — First RoboCup detection system
 
-- **Week 4** — Once data-team has a first train/val/test split, review
+- **Week 4** *(done on a TORSO-21 placeholder split while data-team's
+  split is pending — see [Training a model](#training-a-model))* — Once
+  data-team has a first train/val/test split, review
   it and set up a training config (`configs/`) for ball detection.
-- **Week 5** — Train the first small YOLO model on ball detection
-  (`training/train.py`).
-- **Week 6** — Measure precision/recall/mAP and inference speed
+- **Week 5** *(done: `ball_v1`, see [Results](#results))* — Train the
+  first small YOLO model on ball detection (`training/train.py`).
+- **Week 6** *(done: `training/eval.py`, `inference/detector.py`,
+  [Results](#results) and [failure cases](#ball_v1-failure-cases-for-data-team))* —
+  Measure precision/recall/mAP and inference speed
   (`training/eval.py`); test the detector on footage it hasn't seen and
   share failure cases with data-team; move inference out of notebooks
   into `inference/` as a reusable module (`inference/detector.py`); and
@@ -45,7 +49,10 @@ Progress markers reflect what's visible in the repo as of Oct 4.
 
 ### November — Perception beyond bounding boxes
 
-- **Week 7** — Once data-team's expanded labels start coming in, begin
+- **Week 7** *(in progress: multi-class placeholder data and
+  `configs/multiclass_v1.yaml` ready; training runs on Google Colab —
+  see [Training on Google Colab](#training-on-google-colab))* — Once
+  data-team's expanded labels start coming in, begin
   training on robots and goalposts in addition to the ball
   (`shared/classes.py`).
 - **Week 8** — Extend training to field lines and landmarks; re-run
@@ -79,8 +86,9 @@ detection-team/
 ├── training/     # train.py, eval.py
 ├── inference/    # reusable inference module (no notebook-only code)
 ├── notebooks/    # exploratory training/eval notebooks
-├── models/       # trained weights (gitignored, do not commit)
-├── runs/         # annotated images and other run output (gitignored)
+├── models/       # trained weights + provenance .json (gitignored, do not commit)
+├── datasets/     # local datasets, e.g. the TORSO-21 placeholder (gitignored)
+├── runs/         # training runs, eval results/reports, annotated images (gitignored)
 └── README.md
 ```
 
@@ -110,8 +118,204 @@ confidence threshold actually trades off.
 
 From code, `draw_detections(image, detections)` takes any
 `list[Detection]` — from the dummy detector, the pretrained model, or
-`Detector` once it's implemented — which is handy for the Week 6
-failure-case write-ups for data-team.
+`Detector` — which is handy for the Week 6 failure-case write-ups for
+data-team.
+
+## Using the detector
+
+`inference/detector.py`'s `Detector` is the one way to run a model in
+this repo: a BGR frame in, a `list[Detection]` out. integration-team's
+ROS 2 node, the eval harness, `visualize.py` and `scripts/quickstart.py`
+all go through it.
+
+```python
+import sys
+
+sys.path.insert(0, "detection-team/inference")  # the hyphen means it can't be a package import
+from detector import COCO_CLASS_MAP, Detector
+
+detector = Detector("detection-team/models/ball_v1.pt")  # a model from training/train.py
+detections = detector.predict(frame)  # frame: BGR uint8, (H, W, 3)
+detections = detector.predict(frame, timestamp=capture_time)  # copied onto each Detection
+
+coco = Detector("yolov8n.pt", class_map=COCO_CLASS_MAP)  # stock COCO: keep "sports ball" as "ball"
+```
+
+- `conf` (default 0.25) drops detections below that confidence;
+  `device` (`"cpu"`, `"mps"`, `"cuda:0"`) picks hardware, default auto.
+- A model trained with `training/train.py` already predicts our class
+  names (`shared/classes.py`). Weights trained on another label set
+  report *their* names unless you pass `class_map`, which renames the
+  classes it lists and drops everything else.
+- `timestamp` should be the frame's capture time; leave it `None` for
+  static images, per the `Detection` contract in
+  [ARCHITECTURE.md](../ARCHITECTURE.md#data-contracts).
+
+## Training a model
+
+Everything below runs from the repo root with the venv active. The
+models in [Results](#results) were made exactly this way.
+
+### 1. Get a dataset
+
+Until data-team's split exists, build the **temporary** TORSO-21
+placeholder (cross-team handoff #1 in ARCHITECTURE.md) from the
+real-world TORSO-21 set (~5.7 GB), using data-team's download script:
+
+```bash
+python data-team/scripts/download.py --subset reality
+python detection-team/training/placeholder_dataset.py                 # ball only -> datasets/placeholder_ball/
+python detection-team/training/placeholder_dataset.py \
+    --classes ball robot goalpost landmark                             # -> datasets/placeholder_multiclass/
+```
+
+Each takes seconds (images are symlinked, not copied). The split is by
+*recording*, not by image — see [Dataset contract](#dataset-contract)
+for why that matters.
+
+### 2. Train
+
+```bash
+python detection-team/training/train.py detection-team/configs/ball_v1.yaml
+```
+
+A config (`configs/`) is the complete record of a run: starting
+weights, dataset, epochs, image size, batch, seed. Copy one to a new
+file with a new `name` per experiment instead of editing it. Training
+writes `models/<name>.pt` and `models/<name>.json` — the JSON records
+the config, the dataset's `split_info.yaml`, the git commit (and whether
+the tree was dirty), library versions, and the final val metrics, so any
+model can be traced back to exactly what made it. Ultralytics' own run
+folder (loss curves, per-epoch CSV) is in `runs/train/<name>/`.
+
+On an Apple Silicon Mac the GPU (`mps`) is picked automatically —
+ultralytics alone would use the CPU, ~2.5× slower. One `ball_v1` epoch
+took about 2.5 minutes on an M3 Max. Long runs make a laptop very hot —
+use `--resume` to split a run up, or train on Colab (below). Weights aren't committed; share them via the
+[team drive](https://drive.google.com/drive/folders/1qa2ktrauYvNnrdFLqBTY9tBebvrS4sXG).
+
+### 3. Evaluate
+
+```bash
+python detection-team/training/eval.py detection-team/models/ball_v1.pt \
+    detection-team/datasets/placeholder_ball/data.yaml --split test \
+    --report-dir detection-team/runs/eval/ball_v1_test_report
+open detection-team/runs/eval/ball_v1_test_report/index.html
+```
+
+This runs testing-deployment-team's eval harness with our `Detector`,
+so both teams get the same numbers from the same code: precision and
+recall at IoU 0.5 and confidence 0.25, mAP@0.5, and ms/frame.
+`--report-dir` writes the visual report (every frame's ground truth vs.
+predictions, colored correct / false alarm / missed — see
+[testing-deployment-team's README](../testing-deployment-team/README.md#visual-report-what-it-found-vs-what-it-should-have-found)).
+Add `--device cpu` to measure CPU speed, which is what the
+[milestone](../docs/milestones.md) targets.
+
+### Reproducing a run
+
+Same config + same dataset (`split_info.yaml` lists every recording in
+every split, and the builder is seeded) + the commit in the model's
+JSON. Training on `mps` isn't bit-for-bit deterministic (PyTorch's Apple
+GPU backend doesn't guarantee it), so a rerun lands close to, not
+exactly on, the recorded metrics.
+
+## Dataset contract
+
+What detection-team's training and eval code expects from a dataset —
+the placeholder produces exactly this, and data-team's real split should
+too, so swapping it in is a one-line config change:
+
+- **YOLO format.** A `data.yaml` with `path`, `train`, `val`, `test`
+  (directories of images, relative to `path`) and `names`. Each image
+  `images/<split>/<file>` has `labels/<split>/<file stem>.txt` with one
+  `class_id cx cy w h` line per object, normalized to 0–1; an empty or
+  missing file means "no objects".
+- **Class ids are positions in [`shared/classes.py`](../shared/classes.py)'s
+  `CLASSES`**: 0 ball, 1 robot, 2 goalpost, 3 field_line, 4 landmark.
+  `names` must list every id from 0 up to the highest one used, even ones
+  with no labels (YOLO needs them contiguous). This is what lets a
+  model's output names line up with the shared contract with no mapping.
+- **Split by recording / match / session, never by individual image.**
+  Consecutive frames of one recording are near-duplicates, so a random
+  per-image split puts copies of training frames in val/test and makes
+  the model look far better on "unseen footage" than it is. Note that
+  TORSO-21's own `test` set shares every one of its recordings with its
+  `train` set, so it is **not** unseen footage either.
+- **Fixed seed**, so the split is reproducible.
+- **`landmark`** = field-line intersections (TORSO-21's L-, T- and
+  X-Intersections, merged). They're labeled as points, so the
+  placeholder boxes them as a square 5% of the image width centered on
+  the point — the box *center* is what matters downstream.
+- **`field_line`** isn't labeled with boxes; the team decided field lines
+  stay out of the box detector (handled separately later).
+- Optional but recommended: a `split_info.yaml` next to `data.yaml`
+  describing how the split was made — `train.py` copies it into every
+  model's provenance JSON.
+
+## Results
+
+All on the placeholder split's **test** set: 12 TORSO-21 recordings no
+model was trained on (1,685 frames, 1,160 balls). Precision/recall at
+IoU 0.5; CPU speed on an M3 Max with `--device cpu`.
+
+| Model | Confidence cutoff | Precision | Recall | mAP@0.5 | CPU speed |
+|---|---|---|---|---|---|
+| Stock `yolov8n.pt` (COCO "sports ball"), no training | 0.25 | 0.919 | 0.521 | 0.508 | — |
+| `ball_v1` | 0.25 (default) | 0.827 | 0.898 | 0.888 | 33 FPS |
+| **`ball_v1`** | **0.20** | **0.800** | **0.903** | **0.891** | **33 FPS** |
+| `ball_v1` exported to ONNX | 0.20 | 0.808 | 0.916 | 0.904 | 42 FPS |
+
+- **Use `conf=0.20` with `ball_v1`.** At that cutoff it meets the
+  October milestone ([milestones](../docs/milestones.md): ≥90% recall
+  at IoU 0.5 on held-out footage, ≥30 FPS on a MacBook CPU) — on the
+  placeholder split. Re-check once data-team's split exists.
+- Training is what made the difference: stock YOLO finds about half the
+  balls, `ball_v1` finds 90%.
+- **Precision is understated.** Some "false alarms" are real balls
+  TORSO-21 never labeled (see failure cases below).
+- `ball_v1` was trained for 16 of its 30 planned epochs, then stopped by
+  hand: the laptop was overheating and val scores had plateaued since
+  epoch 1. The kept checkpoint is epoch 10; `models/ball_v1.json`
+  records this.
+- ONNX is ~30% faster on CPU. Its accuracy differs slightly because the
+  export pads every image to a fixed square; testing-deployment-team's
+  `deployment/export_onnx.py` (December) is where that gets settled.
+
+### ball_v1 failure cases (for data-team)
+
+From the visual report (`eval.py ... --report-dir`) and a breakdown of
+every missed ball. Ordered by how much fixing each would help:
+
+1. **Tiny, far-away balls are the biggest miss.** Balls under ~20 px
+   wide (in a 640-px-wide frame) are missed 44% of the time (67 of
+   153), versus 2–6% for anything bigger. More training images with
+   distant balls would help most.
+2. **One venue is much worse: "Nao Devils Lab" (SPL league) — 50% of
+   balls missed.** Its balls are mostly tiny and right at the frame
+   edge, and it's a different league (NAO robots, different camera).
+   The NAO robots' glowing blue LED eyes also cause false alarms there.
+3. **Blurry or partly hidden balls** are missed ~25% of the time (vs 8%
+   for clear ones) — TORSO-21's `blurred` / `concealed` flags. The robot's
+   camera is on a walking head, so motion blur is normal in real games.
+4. **Unlabeled balls.** Several "false alarms" (especially in the
+   "Sydney" recordings) are real balls in the background or at someone's
+   feet that TORSO-21 has no box for. Worth a label-checking pass on
+   anything we use for testing.
+5. **Double boxes on very close balls.** When the ball fills much of the
+   frame, the model sometimes draws two overlapping boxes; one counts as
+   a false alarm.
+
+## Training on Google Colab
+
+A laptop gets very hot training for hours. `notebooks/train_on_colab.ipynb`
+runs the whole pipeline on Google Colab's free GPU instead: open it from
+GitHub in Colab, choose *Runtime → Change runtime type → GPU*, and *Run
+all*. It clones this repo, downloads TORSO-21 with data-team's
+`download.py`, builds the placeholder split, trains the config you pick
+(default `configs/multiclass_v1.yaml`), evaluates it, and copies the
+model and its `.json` to your Google Drive. If Colab disconnects, re-run
+it — it resumes from the last saved epoch on your Drive.
 
 ## First task
 

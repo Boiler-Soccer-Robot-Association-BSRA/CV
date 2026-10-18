@@ -36,7 +36,8 @@ Progress markers reflect what's visible in the repo as of Oct 4.
   it and set up a training config (`configs/`) for ball detection.
 - **Week 5** — Train the first small YOLO model on ball detection
   (`training/train.py`).
-- **Week 6** — Measure precision/recall/mAP and inference speed
+- **Week 6** *(in progress: `inference/detector.py` done, see
+  [Using the detector](#using-the-detector))* — Measure precision/recall/mAP and inference speed
   (`training/eval.py`); test the detector on footage it hasn't seen and
   share failure cases with data-team; move inference out of notebooks
   into `inference/` as a reusable module (`inference/detector.py`); and
@@ -110,8 +111,38 @@ confidence threshold actually trades off.
 
 From code, `draw_detections(image, detections)` takes any
 `list[Detection]` — from the dummy detector, the pretrained model, or
-`Detector` once it's implemented — which is handy for the Week 6
-failure-case write-ups for data-team.
+`Detector` — which is handy for the Week 6 failure-case write-ups for
+data-team.
+
+## Using the detector
+
+`inference/detector.py`'s `Detector` is the one way to run a model in
+this repo: a BGR frame in, a `list[Detection]` out. integration-team's
+ROS 2 node, the eval harness, `visualize.py` and `scripts/quickstart.py`
+all go through it.
+
+```python
+import sys
+
+sys.path.insert(0, "detection-team/inference")  # the hyphen means it can't be a package import
+from detector import COCO_CLASS_MAP, Detector
+
+detector = Detector("detection-team/models/ball_v1.pt")  # a model from training/train.py
+detections = detector.predict(frame)  # frame: BGR uint8, (H, W, 3)
+detections = detector.predict(frame, timestamp=capture_time)  # copied onto each Detection
+
+coco = Detector("yolov8n.pt", class_map=COCO_CLASS_MAP)  # stock COCO: keep "sports ball" as "ball"
+```
+
+- `conf` (default 0.25) drops detections below that confidence;
+  `device` (`"cpu"`, `"mps"`, `"cuda:0"`) picks hardware, default auto.
+- A model trained with `training/train.py` already predicts our class
+  names (`shared/classes.py`). Weights trained on another label set
+  report *their* names unless you pass `class_map`, which renames the
+  classes it lists and drops everything else.
+- `timestamp` should be the frame's capture time; leave it `None` for
+  static images, per the `Detection` contract in
+  [ARCHITECTURE.md](../ARCHITECTURE.md#data-contracts).
 
 ## First task
 

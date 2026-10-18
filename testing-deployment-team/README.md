@@ -120,8 +120,8 @@ and `tests/fixtures/generate_sample_dataset.py` for a worked example.
 `--detector-file`/`--detector-class` load any class implementing
 `predict(image) -> list[Detection]`, constructed with a `weights_path`
 keyword it's free to ignore — the same interface
-`detection-team/inference/detector.py`'s `Detector` already has, so no
-adapter code is needed once that's implemented for real.
+`detection-team/inference/detector.py`'s `Detector` has, so it plugs in
+directly with no adapter code.
 
 ### Stand-in: pretrained COCO YOLO
 

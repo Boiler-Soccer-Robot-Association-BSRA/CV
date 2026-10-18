@@ -110,8 +110,10 @@ the sample dataset in `testing-deployment-team/tests/fixtures/`, reports
 precision/recall at IoU 0.5 and ms/frame, and fails (nonzero exit) if
 recall has dropped too far versus
 [`testing-deployment-team/benchmarks/baseline.json`](testing-deployment-team/benchmarks/baseline.json).
-See [`testing-deployment-team/README.md`](testing-deployment-team/README.md#benchmark-harness)
-for how to point it at a real model and dataset.
+Add `--report-dir some/folder` to also get a visual HTML report — each
+frame with what the detector should have found next to what it did. See
+[`testing-deployment-team/README.md`](testing-deployment-team/README.md#benchmark-harness)
+for that and for how to point the harness at a real model and dataset.
 
 `scripts/quickstart.py` runs a sample image through as much of the real
 pipeline as currently exists — see its docstring for exactly what that

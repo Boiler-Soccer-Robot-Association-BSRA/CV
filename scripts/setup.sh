@@ -22,4 +22,4 @@ pre-commit install
 echo
 echo "Done. Activate this environment in new shells with: source venv/bin/activate"
 echo "Verify it with:    python scripts/quickstart.py"
-echo "Run tests with:     pytest testing-deployment-team/tests/"
+echo "Run tests with:     pytest"

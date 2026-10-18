@@ -10,7 +10,7 @@ tells you what to read, in what order, and how to get set up.
 ```bash
 git clone https://github.com/Boiler-Soccer-Robot-Association-BSRA/CV.git BSRA-CV && cd BSRA-CV
 ./scripts/setup.sh && source venv/bin/activate   # one-command env setup
-pytest testing-deployment-team/tests/            # unit tests
+pytest                                           # unit tests (all teams)
 ruff check .                                     # lint
 python testing-deployment-team/tests/eval_harness.py   # benchmark harness
 ```
@@ -94,7 +94,7 @@ python scripts/quickstart.py
 ### Running tests and lint
 
 ```bash
-pytest testing-deployment-team/tests/     # unit tests
+pytest                                    # unit tests (all teams)
 ruff check .                              # lint
 ruff format .                             # auto-format
 ```

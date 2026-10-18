@@ -9,7 +9,7 @@ projects into robot-relative positions — see
 
 ## Semester roadmap
 
-Progress markers reflect what's visible in the repo as of Oct 15.
+Progress markers reflect what's visible in the repo as of Oct 18.
 
 ### September — Fundamentals & setup
 
@@ -32,11 +32,13 @@ Progress markers reflect what's visible in the repo as of Oct 15.
 
 ### October — First RoboCup detection system
 
-- **Week 4** *(done on a TORSO-21 placeholder split while data-team's
-  split is pending — see [Training a model](#training-a-model))* — Once
+- **Week 4** *(done: data-team's split landed Oct 18; configs
+  `ball_v2.yaml` / `ball_v2_aug.yaml` point at it — see
+  [Training a model](#training-a-model))* — Once
   data-team has a first train/val/test split, review
   it and set up a training config (`configs/`) for ball detection.
-- **Week 5** *(done: `ball_v1`, see [Results](#results))* — Train the
+- **Week 5** *(`ball_v1` done on the placeholder split; `ball_v2` on
+  data-team's split is next — see [Results](#results))* — Train the
   first small YOLO model on ball detection (`training/train.py`).
 - **Week 6** *(done: `training/eval.py`, `inference/detector.py`,
   [Results](#results) and [failure cases](#ball_v1-failure-cases-for-data-team))* —
@@ -49,9 +51,9 @@ Progress markers reflect what's visible in the repo as of Oct 15.
 
 ### November — Perception beyond bounding boxes
 
-- **Week 7** *(in progress: multi-class placeholder data and
-  `configs/multiclass_v1.yaml` ready; training runs on Google Colab —
-  see [Training on Google Colab](#training-on-google-colab))* — Once
+- **Week 7** *(in progress: `multiclass_v1` training on Colab on the
+  placeholder split; `configs/multiclass_v2.yaml` uses data-team's
+  multi-class split — see [Training on Google Colab](#training-on-google-colab))* — Once
   data-team's expanded labels start coming in, begin
   training on robots and goalposts in addition to the ball
   (`shared/classes.py`).
@@ -87,7 +89,7 @@ detection-team/
 ├── inference/    # reusable inference module (no notebook-only code)
 ├── notebooks/    # exploratory training/eval notebooks
 ├── models/       # trained weights + provenance .json (gitignored, do not commit)
-├── datasets/     # local datasets, e.g. the TORSO-21 placeholder (gitignored)
+├── datasets/     # retired TORSO-21 placeholder datasets (gitignored)
 ├── runs/         # training runs, eval results/reports, annotated images (gitignored)
 └── README.md
 ```
@@ -158,25 +160,27 @@ models in [Results](#results) were made exactly this way.
 
 ### 1. Get a dataset
 
-Until data-team's split exists, build the **temporary** TORSO-21
-placeholder (cross-team handoff #1 in ARCHITECTURE.md) from the
-real-world TORSO-21 set (~5.7 GB), using data-team's download script:
+Use data-team's split (seed 42, the same on every computer — see
+[data-team/docs/splits-and-augmentation.md](../data-team/docs/splits-and-augmentation.md)):
 
 ```bash
-python data-team/scripts/download.py --subset reality
-python detection-team/training/placeholder_dataset.py                 # ball only -> datasets/placeholder_ball/
-python detection-team/training/placeholder_dataset.py \
-    --classes ball robot goalpost landmark                             # -> datasets/placeholder_multiclass/
+python data-team/scripts/download.py --subset reality           # once, ~5.7 GB
+python data-team/scripts/split.py                               # ball -> data-team/datasets/ball/
+python data-team/scripts/augment.py data-team/datasets/ball     # optional: + data_aug.yaml
+python data-team/scripts/split.py --classes ball robot goalpost landmark   # -> data-team/datasets/multiclass/
 ```
 
-Each takes seconds (images are symlinked, not copied). The split is by
-*recording*, not by image — see [Dataset contract](#dataset-contract)
-for why that matters.
+Check the `fingerprint` that `split.py` prints against a teammate's: the
+same fingerprint means the same split, so your scores are comparable.
+
+`training/placeholder_dataset.py` is **retired**: it built a temporary
+split before data-team's existed and is kept only to reproduce `ball_v1`
+and `multiclass_v1`.
 
 ### 2. Train
 
 ```bash
-python detection-team/training/train.py detection-team/configs/ball_v1.yaml
+python detection-team/training/train.py detection-team/configs/ball_v2.yaml
 ```
 
 A config (`configs/`) is the complete record of a run: starting
@@ -197,10 +201,10 @@ use `--resume` to split a run up, or train on Colab (below). Weights aren't comm
 ### 3. Evaluate
 
 ```bash
-python detection-team/training/eval.py detection-team/models/ball_v1.pt \
-    detection-team/datasets/placeholder_ball/data.yaml --split test \
-    --report-dir detection-team/runs/eval/ball_v1_test_report
-open detection-team/runs/eval/ball_v1_test_report/index.html
+python detection-team/training/eval.py detection-team/models/ball_v2.pt \
+    data-team/datasets/ball/data.yaml --split test \
+    --report-dir detection-team/runs/eval/ball_v2_test_report
+open detection-team/runs/eval/ball_v2_test_report/index.html
 ```
 
 This runs testing-deployment-team's eval harness with our `Detector`,
@@ -222,9 +226,9 @@ exactly on, the recorded metrics.
 
 ## Dataset contract
 
-What detection-team's training and eval code expects from a dataset —
-the placeholder produces exactly this, and data-team's real split should
-too, so swapping it in is a one-line config change:
+What detection-team's training and eval code expects from a dataset.
+data-team's `split.py` produces exactly this (checked Oct 18), so
+switching datasets is a one-line config change:
 
 - **YOLO format.** A `data.yaml` with `path`, `train`, `val`, `test`
   (directories of images, relative to `path`) and `names`. Each image
@@ -244,8 +248,8 @@ too, so swapping it in is a one-line config change:
   `train` set, so it is **not** unseen footage either.
 - **Fixed seed**, so the split is reproducible.
 - **`landmark`** = field-line intersections (TORSO-21's L-, T- and
-  X-Intersections, merged). They're labeled as points, so the
-  placeholder boxes them as a square 5% of the image width centered on
+  X-Intersections, merged). They're labeled as points, so `split.py`
+  boxes them as a square 5% of the image width centered on
   the point — the box *center* is what matters downstream.
 - **`field_line`** isn't labeled with boxes; the team decided field lines
   stay out of the box detector (handled separately later).
@@ -255,9 +259,18 @@ too, so swapping it in is a one-line config change:
 
 ## Results
 
-All on the placeholder split's **test** set: 12 TORSO-21 recordings no
-model was trained on (1,685 frames, 1,160 balls). Precision/recall at
-IoU 0.5; CPU speed on an M3 Max with `--device cpu`.
+**The October milestone isn't confirmed yet.** `ball_v1` was trained and
+tested on detection's temporary placeholder split. On data-team's real
+split, half of the test recordings were in `ball_v1`'s training data, so
+it can't be scored there fairly. On the 4 test recordings it never saw
+(304 balls) it reaches **0.77 recall / 0.72 precision** at conf 0.20 —
+well below the 0.90 it scored on the placeholder test. `ball_v2`,
+trained on data-team's split, is the real check.
+
+The table below is all on the placeholder split's **test** set: 12
+TORSO-21 recordings `ball_v1` was not trained on (1,685 frames, 1,160
+balls). Precision/recall at IoU 0.5; CPU speed on an M3 Max with
+`--device cpu`.
 
 | Model | Confidence cutoff | Precision | Recall | mAP@0.5 | CPU speed |
 |---|---|---|---|---|---|
@@ -266,10 +279,10 @@ IoU 0.5; CPU speed on an M3 Max with `--device cpu`.
 | **`ball_v1`** | **0.20** | **0.800** | **0.903** | **0.891** | **33 FPS** |
 | `ball_v1` exported to ONNX | 0.20 | 0.808 | 0.916 | 0.904 | 42 FPS |
 
-- **Use `conf=0.20` with `ball_v1`.** At that cutoff it meets the
-  October milestone ([milestones](../docs/milestones.md): ≥90% recall
-  at IoU 0.5 on held-out footage, ≥30 FPS on a MacBook CPU) — on the
-  placeholder split. Re-check once data-team's split exists.
+- **Use `conf=0.20` with `ball_v1`.** At that cutoff it reaches the
+  milestone's numbers ([milestones](../docs/milestones.md): ≥90% recall
+  at IoU 0.5 on held-out footage, ≥30 FPS on a MacBook CPU) on the
+  placeholder test only — see the note above.
 - Training is what made the difference: stock YOLO finds about half the
   balls, `ball_v1` finds 90%.
 - **Precision is understated.** Some "false alarms" are real balls
@@ -311,11 +324,13 @@ every missed ball. Ordered by how much fixing each would help:
 A laptop gets very hot training for hours. `notebooks/train_on_colab.ipynb`
 runs the whole pipeline on Google Colab's free GPU instead: open it from
 GitHub in Colab, choose *Runtime → Change runtime type → GPU*, and *Run
-all*. It clones this repo, downloads TORSO-21 with data-team's
-`download.py`, builds the placeholder split, trains the config you pick
-(default `configs/multiclass_v1.yaml`), evaluates it, and copies the
-model and its `.json` to your Google Drive. If Colab disconnects, re-run
-it — it resumes from the last saved epoch on your Drive.
+all*. It clones this repo, downloads TORSO-21, builds the dataset the
+config needs (data-team's `split.py`, plus `augment.py` for
+`ball_v2_aug`), trains the config you pick (default
+`configs/ball_v2.yaml`), evaluates it on the test split, and copies the
+model, its `.json` and a visual report to your Google Drive. If Colab
+disconnects, re-run it — it resumes from the last saved epoch on your
+Drive.
 
 ## First task
 

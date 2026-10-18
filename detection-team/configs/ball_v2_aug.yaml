@@ -1,0 +1,14 @@
+# ball_v2 + data-team's offline augmentation (lighting, blur, crop/scale) on
+# the training split; val and test are the same as ball_v2's. Build it with:
+#   python data-team/scripts/split.py
+#   python data-team/scripts/augment.py data-team/datasets/ball
+name: ball_v2_aug
+model: yolov8n.pt
+dataset: ../../data-team/datasets/ball/data_aug.yaml
+epochs: 30
+imgsz: 640
+batch: 16
+seed: 0
+patience: 10
+device: null
+train_args: {}

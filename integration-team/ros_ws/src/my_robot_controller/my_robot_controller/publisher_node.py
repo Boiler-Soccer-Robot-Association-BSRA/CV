@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String  # Change this if using a different message type
 
+
 class GenericPublisher(Node):
     def __init__(self):
         super().__init__('generic_publisher')
@@ -17,7 +18,8 @@ class GenericPublisher(Node):
         self.timer = self.create_timer(publish_frequency, self.timer_callback)
         self.counter = 0
         
-        self.get_logger().info(f'Publisher initialized. Broadcasting on "{topic_name}" every {publish_frequency}s.')
+        self.get_logger().info(
+            f'Publisher initialized. Broadcasting on "{topic_name}" every {publish_frequency}s.')
 
     def timer_callback(self):
         msg = String()

@@ -31,7 +31,7 @@ Never commit directly to `main`.
 ```bash
 ruff check .                              # lint
 ruff format .                             # auto-format
-pytest testing-deployment-team/tests/     # unit tests
+pytest                                    # unit tests (all teams)
 python testing-deployment-team/tests/eval_harness.py   # benchmark regression gate
 ```
 

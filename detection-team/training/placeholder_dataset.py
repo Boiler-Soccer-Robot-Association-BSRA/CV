@@ -1,4 +1,8 @@
-"""Build a TEMPORARY detection dataset from TORSO-21, so detection-team can
+"""RETIRED: use data-team/scripts/split.py instead (merged Oct 18, seed 42).
+Kept only so the models trained on it (ball_v1, multiclass_v1) can be
+reproduced. New configs point at data-team/datasets/.
+
+Build a TEMPORARY detection dataset from TORSO-21, so detection-team can
 train and evaluate before data-team's real split exists.
 
 This is the stopgap ARCHITECTURE.md's cross-team handoffs #1, #4 and #5

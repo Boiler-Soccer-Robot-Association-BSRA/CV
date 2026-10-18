@@ -1,0 +1,16 @@
+# Ball detector on data-team's real split (data-team/scripts/split.py, seed 42).
+# Replaces ball_v1, which was trained on detection's temporary placeholder
+# split. Build the dataset first:
+#   python data-team/scripts/split.py
+# Compare with ball_v2_aug.yaml (same split + data-team's augmentation) to see
+# whether the augmentation helps (data-team's Week 6 question).
+name: ball_v2
+model: yolov8n.pt
+dataset: ../../data-team/datasets/ball/data.yaml
+epochs: 30
+imgsz: 640
+batch: 16
+seed: 0
+patience: 10
+device: null
+train_args: {}

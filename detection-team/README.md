@@ -295,6 +295,27 @@ balls). Precision/recall at IoU 0.5; CPU speed on an M3 Max with
   export pads every image to a fixed square; testing-deployment-team's
   `deployment/export_onnx.py` (December) is where that gets settled.
 
+### multiclass_v1 (placeholder split)
+
+Trained on Colab (T4 GPU, 40 epochs, resumed once after a disconnect) on
+the retired placeholder multi-class split; tested on its 12 held-out
+recordings (2,097 frames, 7,489 objects), conf 0.25, IoU 0.5:
+
+| Class | AP@0.5 |
+|---|---|
+| ball | 0.863 |
+| goalpost | 0.821 |
+| robot | 0.765 |
+| landmark | 0.729 |
+| **All classes** | **precision 0.837, recall 0.786, mAP 0.794** |
+
+- Close to the November target (≥80% recall across classes) already;
+  landmarks (field-line crossings) are the weakest class.
+- Same caveat as `ball_v1`: this is the placeholder split, so the real
+  numbers come from `multiclass_v2` on data-team's split.
+- The model, its `.json` and a visual report are on the Colab runner's
+  Google Drive (`BSRA-CV/`); share the `.pt` via the team drive.
+
 ### ball_v1 failure cases (for data-team)
 
 From the visual report (`eval.py ... --report-dir`) and a breakdown of

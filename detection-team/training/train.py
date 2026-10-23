@@ -82,6 +82,16 @@ def pick_device(device: str | None) -> str | None:
     return "mps" if torch.backends.mps.is_available() else None
 
 
+def run_finished(checkpoint: Path) -> bool:
+    """True if `checkpoint` is from a run that already finished. Ultralytics
+    marks a finished run's checkpoints with epoch -1 (and drops the optimizer);
+    "resuming" one of those doesn't continue anything — it produces a broken
+    model, so it must never be resumed."""
+    import torch
+
+    return torch.load(checkpoint, map_location="cpu", weights_only=False).get("epoch") == -1
+
+
 def git_state() -> dict[str, Any]:
     def run(*args: str) -> str:
         return subprocess.run(
@@ -125,6 +135,12 @@ def train(config_path: Path, overwrite: bool = False, resume: bool = False) -> P
     last = RUNS_DIR / name / "weights" / "last.pt"
     if resume and not last.exists():
         raise SystemExit(f"Nothing to resume: {last} doesn't exist.")
+    if resume and run_finished(last):
+        raise SystemExit(
+            f"Nothing to resume: the run in {last.parent.parent} already finished. Its best "
+            f"weights are {last.parent / 'best.pt'}. To train again, give the config a new "
+            "`name` (or delete that run folder)."
+        )
     data_yaml = Path(config["dataset"])
     if not data_yaml.exists():
         raise SystemExit(f"Dataset not found: {data_yaml}")

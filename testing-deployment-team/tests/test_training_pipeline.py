@@ -290,11 +290,32 @@ def test_resume_continues_from_last_checkpoint(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="Nothing to resume"):
         train_module.train(config_path, resume=True)
 
+    import torch
+
     last = tmp_path / "runs" / "unit_test_model" / "weights" / "last.pt"
     last.parent.mkdir(parents=True)
-    last.write_bytes(b"half trained")
+    torch.save({"epoch": 7}, last)  # interrupted after epoch 7
     weights = train_module.train(config_path, resume=True)
     assert json.loads(weights.with_suffix(".json").read_text())["resumed"] is True
+
+
+def test_resume_refuses_a_run_that_already_finished(tmp_path, monkeypatch):
+    """Resuming a finished run produced a broken ball_v2 (0 predictions) on
+    Colab, overwriting the good model. It must stop instead."""
+    import torch
+    import ultralytics
+
+    monkeypatch.setattr(ultralytics, "YOLO", FakeYOLO)
+    monkeypatch.setattr(train_module, "MODELS_DIR", tmp_path / "models")
+    monkeypatch.setattr(train_module, "RUNS_DIR", tmp_path / "runs")
+    config_path = write_config(tmp_path)
+
+    last = tmp_path / "runs" / "unit_test_model" / "weights" / "last.pt"
+    last.parent.mkdir(parents=True)
+    torch.save({"epoch": -1}, last)  # how ultralytics marks a finished run
+    with pytest.raises(SystemExit, match="already finished"):
+        train_module.train(config_path, resume=True)
+    assert not (tmp_path / "models" / "unit_test_model.pt").exists()
 
 
 def test_build_reads_both_torso_layouts(tmp_path):

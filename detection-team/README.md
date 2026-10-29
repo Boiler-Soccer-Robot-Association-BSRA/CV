@@ -370,8 +370,8 @@ recordings (2,097 frames, 7,489 objects), conf 0.25, IoU 0.5:
   landmarks (field-line crossings) are the weakest class.
 - Same caveat as `ball_v1`: this is the placeholder split, so the real
   numbers come from `multiclass_v2` on data-team's split.
-- The model, its `.json` and a visual report are on the Colab runner's
-  Google Drive (`BSRA-CV/`); share the `.pt` via the team drive.
+- The model, its `.json` and a visual report are in the team drive's
+  `BSRA-CV/` folder (see [Training on Google Colab](#training-on-google-colab)).
 
 #### ball_v1 failure cases (for data-team)
 
@@ -408,7 +408,16 @@ config needs (data-team's `split.py`, plus `augment.py` for
 `configs/ball_v2.yaml`), evaluates it on the test split, and copies the
 model, its `.json` and a visual report to your Google Drive. If Colab
 disconnects, re-run it — it resumes from the last saved epoch on your
-Drive.
+Drive. If `models/<name>.pt` is already on Drive, it skips training.
+
+**Where results go.** The notebook writes to `MyDrive/BSRA-CV/`
+(`models/`, `runs/`, `reports/`). The team's copy of that folder lives in
+the [team drive](https://drive.google.com/drive/folders/1qa2ktrauYvNnrdFLqBTY9tBebvrS4sXG)
+under *Computer Vision › BSRA-CV*. To have your Colab runs land there
+too, open that folder in Drive, right-click `BSRA-CV` → *Organize → Add
+shortcut* → *My Drive*. Colab follows the shortcut. Without it, your
+results stay in your own Drive; upload the `.pt` + `.json` to
+`BSRA-CV/models/` yourself.
 
 ## First task
 

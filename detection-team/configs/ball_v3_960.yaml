@@ -1,0 +1,19 @@
+# ball_v2 at 960 px instead of 640, to test whether a bigger input fixes
+# tiny far-away balls (ball_v2 misses 89% of balls under 20 px wide; see
+# detection-team/README.md "ball_v2 failure cases"). Same data-team split.
+# TORSO-21 images are ~640 px wide, so this upscales them: each ball covers
+# more of the network's grid. Trade-off: ~2.25x the compute per frame
+# (ball_v2 measured at 960: ~16 FPS PyTorch / ~19 FPS ONNX on a MacBook CPU,
+# below the 30 FPS target), so this is an experiment, not a drop-in.
+# Build the dataset first:
+#   python data-team/scripts/split.py
+name: ball_v3_960
+model: yolov8n.pt
+dataset: ../../data-team/datasets/ball/data.yaml
+epochs: 30
+imgsz: 960
+batch: 16
+seed: 0
+patience: 10
+device: null
+train_args: {}

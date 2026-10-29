@@ -310,10 +310,13 @@ M3 Max with `--device cpu`.
 3. **Blur is not a big problem any more**: blurred/concealed balls are
    missed 12% of the time, clear ones 22% (the clear ones include the
    tiny balls above).
-4. Next steps: train at a higher resolution (`ball_v3_960`, imgsz 960)
-   so tiny balls cover more pixels, and/or more tiny-ball training
-   data from data-team. `ball_v2_aug` (Aditya) tests whether
-   augmentation helps.
+4. Next steps: train at a higher resolution (`configs/ball_v3_960.yaml`,
+   imgsz 960) so tiny balls cover more pixels, and/or more tiny-ball
+   training data from data-team. `ball_v2_aug` (Aditya) tests whether
+   augmentation helps. Catch: 960 px is ~2.25x the compute. The same
+   network at 960 runs ~16 FPS (PyTorch) / ~19 FPS (ONNX) on a MacBook
+   CPU, below the 30 FPS target. If 960 fixes tiny balls, try a size in
+   between (e.g. 800) next.
 
 ### ball_v1 (placeholder split)
 

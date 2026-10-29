@@ -238,3 +238,6 @@ testing-deployment-team/benchmarks/results/*
 *.pt
 *.onnx
 *.engine
+
+# macOS Finder metadata
+.DS_Store

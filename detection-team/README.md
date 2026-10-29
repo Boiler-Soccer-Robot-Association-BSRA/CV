@@ -37,8 +37,8 @@ Progress markers reflect what's visible in the repo as of Oct 18.
   [Training a model](#training-a-model))* — Once
   data-team has a first train/val/test split, review
   it and set up a training config (`configs/`) for ball detection.
-- **Week 5** *(`ball_v1` done on the placeholder split; `ball_v2` on
-  data-team's split is next — see [Results](#results))* — Train the
+- **Week 5** *(done: `ball_v2` trained on data-team's split, 0.79 test
+  recall, short of 0.90 because of tiny balls; see [Results](#results))* — Train the
   first small YOLO model on ball detection (`training/train.py`).
 - **Week 6** *(done: `training/eval.py`, `inference/detector.py`,
   [Results](#results) and [failure cases](#ball_v1-failure-cases-for-data-team))* —
@@ -259,13 +259,70 @@ switching datasets is a one-line config change:
 
 ## Results
 
-**The October milestone isn't confirmed yet.** `ball_v1` was trained and
-tested on detection's temporary placeholder split. On data-team's real
-split, half of the test recordings were in `ball_v1`'s training data, so
-it can't be scored there fairly. On the 4 test recordings it never saw
-(304 balls) it reaches **0.77 recall / 0.72 precision** at conf 0.20 —
-well below the 0.90 it scored on the placeholder test. `ball_v2`,
-trained on data-team's split, is the real check.
+**The October milestone is not met yet: speed is met, recall is not.**
+`ball_v2` (trained on data-team's split) finds **79% of the balls** in
+data-team's held-out test recordings at conf 0.20; the target is 90%.
+Speed is fine: 30 FPS on a MacBook CPU, 42 FPS as ONNX. Almost all of
+the gap is **one recording of tiny, far-away balls** (see
+[ball_v2 failure cases](#ball_v2-failure-cases-for-data-team)): without
+it, recall is 0.95; on the Humanoid League venues alone it is 0.97.
+
+### ball_v2 (data-team's split)
+
+data-team's **test** split (`split.py`, seed 42, fingerprint
+`837ca5b99e04eaf8`): 8 TORSO-21 recordings `ball_v2` was not trained
+on, 686 frames, 624 balls. Precision/recall at IoU 0.5; CPU speed on an
+M3 Max with `--device cpu`.
+
+| Model | Confidence cutoff | Precision | Recall | mAP@0.5 | CPU speed |
+|---|---|---|---|---|---|
+| `ball_v2` | 0.25 (default) | 0.906 | 0.788 | 0.786 | 30 FPS |
+| **`ball_v2`** | **0.20** | **0.890** | **0.793** | **0.790** | **30 FPS** |
+| `ball_v2` exported to ONNX | 0.20 | 0.894 | 0.800 | 0.795 | 42 FPS |
+| `ball_v2`, test minus recording 151 | 0.20 | 0.924 | 0.949 | — | — |
+| `ball_v2`, Humanoid League venues only | 0.20 | 0.977 | 0.968 | — | — |
+
+- **Lowering the cutoff doesn't close the gap.** Recall by cutoff:
+  0.05 → 0.849 (precision 0.71), 0.10 → 0.816, 0.20 → 0.793,
+  0.30 → 0.780, 0.50 → 0.760 (precision 0.97). The missed balls get
+  almost no score at all, so this needs a model change, not a setting.
+- On the validation split (used to pick the checkpoint) it scored
+  0.903 recall / 0.962 precision; test recall is lower because of
+  recording 151.
+- Trained on Colab (T4) for all 30 epochs; the kept checkpoint is epoch
+  28. `models/ball_v2.json` records this, plus the Oct 23 incident
+  where re-running the notebook overwrote the first saved copy with an
+  empty model (fixed in #22; the weights used here are the original
+  `runs/train/ball_v2/weights/best.pt`).
+- Still use `conf=0.20` for ball models: it is the best balance here too.
+
+#### ball_v2 failure cases (for data-team)
+
+129 balls missed at conf 0.20:
+
+1. **Tiny balls: 108 of 121 balls under 20 px wide are missed (89%)**,
+   versus 4–5% for every bigger size. 103 of those are in a single test
+   recording, **151** ("Nao Devils Lab", SPL), where every ball is tiny.
+   That one recording is 80% of all misses. The venue itself isn't
+   new: 5 training recordings come from it.
+2. **Nao Devils Lab false alarms**: 53 of the 61 false alarms are
+   there (the NAO robots' LED eyes again).
+3. **Blur is not a big problem any more**: blurred/concealed balls are
+   missed 12% of the time, clear ones 22% (the clear ones include the
+   tiny balls above).
+4. Next steps: train at a higher resolution (`ball_v3_960`, imgsz 960)
+   so tiny balls cover more pixels, and/or more tiny-ball training
+   data from data-team. `ball_v2_aug` (Aditya) tests whether
+   augmentation helps.
+
+### ball_v1 (placeholder split)
+
+`ball_v1` was trained and tested on detection's temporary placeholder
+split. On data-team's real split, half of the test recordings were in
+`ball_v1`'s training data, so it can't be scored there fairly. On the 4
+test recordings it never saw (304 balls) it reaches **0.77 recall / 0.72
+precision** at conf 0.20, well below the 0.90 it scored on the
+placeholder test.
 
 The table below is all on the placeholder split's **test** set: 12
 TORSO-21 recordings `ball_v1` was not trained on (1,685 frames, 1,160
@@ -282,7 +339,7 @@ balls). Precision/recall at IoU 0.5; CPU speed on an M3 Max with
 - **Use `conf=0.20` with `ball_v1`.** At that cutoff it reaches the
   milestone's numbers ([milestones](../docs/milestones.md): ≥90% recall
   at IoU 0.5 on held-out footage, ≥30 FPS on a MacBook CPU) on the
-  placeholder test only — see the note above.
+  placeholder test only. See the note above.
 - Training is what made the difference: stock YOLO finds about half the
   balls, `ball_v1` finds 90%.
 - **Precision is understated.** Some "false alarms" are real balls
@@ -313,10 +370,10 @@ recordings (2,097 frames, 7,489 objects), conf 0.25, IoU 0.5:
   landmarks (field-line crossings) are the weakest class.
 - Same caveat as `ball_v1`: this is the placeholder split, so the real
   numbers come from `multiclass_v2` on data-team's split.
-- The model, its `.json` and a visual report are on the Colab runner's
-  Google Drive (`BSRA-CV/`); share the `.pt` via the team drive.
+- The model, its `.json` and a visual report are in the team drive's
+  `BSRA-CV/` folder (see [Training on Google Colab](#training-on-google-colab)).
 
-### ball_v1 failure cases (for data-team)
+#### ball_v1 failure cases (for data-team)
 
 From the visual report (`eval.py ... --report-dir`) and a breakdown of
 every missed ball. Ordered by how much fixing each would help:
@@ -351,7 +408,16 @@ config needs (data-team's `split.py`, plus `augment.py` for
 `configs/ball_v2.yaml`), evaluates it on the test split, and copies the
 model, its `.json` and a visual report to your Google Drive. If Colab
 disconnects, re-run it — it resumes from the last saved epoch on your
-Drive.
+Drive. If `models/<name>.pt` is already on Drive, it skips training.
+
+**Where results go.** The notebook writes to `MyDrive/BSRA-CV/`
+(`models/`, `runs/`, `reports/`). The team's copy of that folder lives in
+the [team drive](https://drive.google.com/drive/folders/1qa2ktrauYvNnrdFLqBTY9tBebvrS4sXG)
+under *Computer Vision › BSRA-CV*. To have your Colab runs land there
+too, open that folder in Drive, right-click `BSRA-CV` → *Organize → Add
+shortcut* → *My Drive*. Colab follows the shortcut. Without it, your
+results stay in your own Drive; upload the `.pt` + `.json` to
+`BSRA-CV/models/` yourself.
 
 ## First task
 

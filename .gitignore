@@ -241,3 +241,8 @@ testing-deployment-team/benchmarks/results/*
 
 # macOS Finder metadata
 .DS_Store
+
+# ROS 2 colcon build output
+integration-team/ros_ws/build/
+integration-team/ros_ws/install/
+integration-team/ros_ws/log/

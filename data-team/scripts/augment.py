@@ -125,6 +125,8 @@ def crop_scale(img, boxes, rng: random.Random, min_visible: float = 0.4, tries: 
 
 def augment(img, boxes, rng: random.Random, p_light=0.8, p_blur=0.3, p_crop=0.5):
     """Apply a random combination; always applies at least one augmentation."""
+    if p_light <= 0 and p_blur <= 0 and p_crop <= 0:
+        raise ValueError("At least one of p_light, p_blur, p_crop must be above 0")
     keep = np.arange(len(boxes))
     applied = []
     while not applied:

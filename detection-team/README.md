@@ -38,7 +38,8 @@ Progress markers reflect what's visible in the repo as of Oct 18.
   data-team has a first train/val/test split, review
   it and set up a training config (`configs/`) for ball detection.
 - **Week 5** *(done: `ball_v2` trained on data-team's split, 0.79 test
-  recall, short of 0.90 because of tiny balls; see [Results](#results))* — Train the
+  recall as scored, 0.947 counting recording 151's stationary ball once;
+  target moved to Nov 15; see [Results](#results))* — Train the
   first small YOLO model on ball detection (`training/train.py`).
 - **Week 6** *(done: `training/eval.py`, `inference/detector.py`,
   [Results](#results) and [failure cases](#ball_v1-failure-cases-for-data-team))* —
@@ -263,9 +264,13 @@ switching datasets is a one-line config change:
 `ball_v2` (trained on data-team's split) finds **79% of the balls** in
 data-team's held-out test recordings at conf 0.20; the target is 90%.
 Speed is fine: 30 FPS on a MacBook CPU, 42 FPS as ONNX. Almost all of
-the gap is **one recording of tiny, far-away balls** (see
-[ball_v2 failure cases](#ball_v2-failure-cases-for-data-team)): without
-it, recall is 0.95; on the Humanoid League venues alone it is 0.97.
+the gap is **one stationary ball in recording 151**, repeated in 113
+frames (see
+[ball_v2 failure cases](#ball_v2-failure-cases-for-data-team)). We report
+both numbers: **0.793 as scored, 0.947 counting that ball once** (as a
+miss). Neither proves tiny balls work: this test set has only 9 distinct
+tiny balls, so the target stays open, now due **Nov 15**, and `ball_v4`
+adds a harder test set.
 
 ### ball_v2 (data-team's split)
 
@@ -281,6 +286,17 @@ M3 Max with `--device cpu`.
 | `ball_v2` exported to ONNX | 0.20 | 0.894 | 0.800 | 0.795 | 42 FPS |
 | `ball_v2`, test minus recording 151 | 0.20 | 0.924 | 0.949 | — | — |
 | `ball_v2`, Humanoid League venues only | 0.20 | 0.977 | 0.968 | — | — |
+| `ball_v2_aug` | 0.20 | 0.883 | 0.777 | 0.775 | 30 FPS (43 ONNX) |
+| `ball_v3_960` | 0.20 | 0.855 | 0.777 | 0.772 | 17 FPS (19 ONNX) |
+
+Neither `ball_v2_aug` (offline augmentation) nor `ball_v3_960` (960 px)
+beats `ball_v2`, so `ball_v2` stays our best model and we won't try an
+800 px config. All three score 0.949 recall without recording 151, and
+the gaps above are within our ~3-point run-to-run noise (Aditya's plain
+`ball_v2` run reached 0.816 at conf 0.25). Tiny balls (under 20 px) on
+the validation split, which helped pick each checkpoint: `ball_v2` 14 of
+23, `ball_v2_aug` 12, `ball_v3_960` 16. That's too few to rank them, but
+far below the 94% for bigger balls.
 
 - **Lowering the cutoff doesn't close the gap.** Recall by cutoff:
   0.05 → 0.849 (precision 0.71), 0.10 → 0.816, 0.20 → 0.793,
@@ -302,21 +318,21 @@ M3 Max with `--device cpu`.
 
 1. **Tiny balls: 108 of 121 balls under 20 px wide are missed (89%)**,
    versus 4–5% for every bigger size. 103 of those are in a single test
-   recording, **151** ("Nao Devils Lab", SPL), where every ball is tiny.
-   That one recording is 80% of all misses. The venue itself isn't
-   new: 5 training recordings come from it.
+   recording, **151** ("Nao Devils Lab", SPL). That recording is **one
+   stationary ball**: a fixed camera, and the same 11×10 px box at the
+   frame's right edge in all 113 frames. The label looks correct, but
+   the test's 121 tiny labels are only 9 distinct balls. The venue
+   itself isn't new: 5 training recordings come from it.
 2. **Nao Devils Lab false alarms**: 53 of the 61 false alarms are
    there (the NAO robots' LED eyes again).
 3. **Blur is not a big problem any more**: blurred/concealed balls are
    missed 12% of the time, clear ones 22% (the clear ones include the
    tiny balls above).
-4. Next steps: train at a higher resolution (`configs/ball_v3_960.yaml`,
-   imgsz 960) so tiny balls cover more pixels, and/or more tiny-ball
-   training data from data-team. `ball_v2_aug` (Aditya) tests whether
-   augmentation helps. Catch: 960 px is ~2.25x the compute. The same
-   network at 960 runs ~16 FPS (PyTorch) / ~19 FPS (ONNX) on a MacBook
-   CPU, below the 30 FPS target. If 960 fixes tiny balls, try a size in
-   between (e.g. 800) next.
+4. Next step: `configs/ball_v4.yaml` trains like `ball_v2` but holds out
+   recording 180 (Iran Open 2018, Humanoid League, robot camera) for
+   testing. That takes the test set to 871 balls and 63 distinct tiny
+   balls. Training already has 397 tiny balls, so more of them isn't the
+   first thing to try.
 
 ### ball_v1 (placeholder split)
 

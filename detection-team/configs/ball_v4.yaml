@@ -1,0 +1,17 @@
+# ball_v2 with recording 180 held out for testing. The old test split's tiny
+# balls are mostly one stationary ball in recording 151 (same box in all 113
+# frames), so it can't measure tiny-ball recall. Recording 180 (Iran Open 2018,
+# Humanoid League, robot camera) adds 54 tiny balls in varied positions.
+# Old test numbers aren't comparable: this test set is bigger and harder.
+# Build the dataset first:
+#   python data-team/scripts/split.py --move-to-test 180 --out data-team/datasets/ball_r180
+name: ball_v4
+model: yolov8n.pt
+dataset: ../../data-team/datasets/ball_r180/data.yaml
+epochs: 30
+imgsz: 640
+batch: 16
+seed: 0
+patience: 10
+device: null
+train_args: {}

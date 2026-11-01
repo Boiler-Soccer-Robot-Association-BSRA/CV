@@ -72,13 +72,16 @@ def walk(url: str):
 
 def wanted(rel_path: str, subset: str, split: str) -> bool:
     parts = rel_path.split("/")
-    other_subsets = {"reality", "simulation"} - {subset}
+    if len(parts) == 1 and parts[0].endswith(".zip"):
+        # Top-level archives (reality.zip, simulation.zip) repeat what's in
+        # <subset>/train.zip and <subset>/test.zip, which respect --split.
+        return False
     if subset != "all" and parts[0] != subset:
-        # Top-level files (README, LICENSE, ...) are kept, unless they are
-        # an archive of the other subset (e.g. simulation.zip).
-        return len(parts) == 1 and not parts[0].startswith(tuple(other_subsets))
-    if split != "all" and len(parts) > 2 and parts[1] in ("train", "test"):
-        return parts[1] == split
+        # Other top-level files (README, LICENSE, ...) are kept.
+        return len(parts) == 1
+    half = parts[1].removesuffix(".zip") if len(parts) > 1 else None
+    if split != "all" and half in ("train", "test"):
+        return half == split
     return True
 
 

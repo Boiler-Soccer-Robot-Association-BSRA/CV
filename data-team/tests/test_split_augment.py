@@ -18,6 +18,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import augment  # noqa: E402
+import download  # noqa: E402
 from yolo_io import read_labels, write_labels  # noqa: E402
 
 
@@ -177,6 +178,25 @@ def test_augment_writes_matching_labels(torso, tmp_path):
         check=False,
     )
     assert bad.returncode != 0
+
+
+def test_augment_rejects_all_zero_probabilities():
+    img = np.zeros((10, 10, 3), dtype=np.uint8)
+    with pytest.raises(ValueError):
+        augment.augment(img, np.zeros((0, 4)), random.Random(0), 0, 0, 0)
+
+
+def test_download_skips_duplicate_archives():
+    names = ["reality.zip", "simulation.zip", "reality/train.zip", "reality/test.zip"]
+    picked = [n for n in names if download.wanted(n, "reality", "all")]
+    assert picked == ["reality/train.zip", "reality/test.zip"]
+
+
+def test_download_split_applies_to_archives():
+    assert download.wanted("reality/test.zip", "reality", "test")
+    assert not download.wanted("reality/train.zip", "reality", "test")
+    assert not download.wanted("reality/train/annotations.yaml", "reality", "test")
+    assert download.wanted("README.md", "reality", "test")
 
 
 def test_yolo_roundtrip(tmp_path):

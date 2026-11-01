@@ -97,6 +97,22 @@ def test_no_recording_in_two_splits(torso, tmp_path):
     assert 34 <= len(everything) - 360 <= 38
 
 
+def test_move_to_test_only_moves_that_recording(torso, tmp_path):
+    base = run_split(torso, tmp_path / "base")
+    rec = base["splits"]["train"]["recordings"][0]
+    moved = run_split(torso, tmp_path / "moved", "--move-to-test", rec)
+    assert rec in moved["splits"]["test"]["recordings"]
+    assert rec not in moved["splits"]["train"]["recordings"]
+    assert set(base["splits"]["test"]["recordings"]) < set(moved["splits"]["test"]["recordings"])
+    assert base["splits"]["val"]["recordings"] == moved["splits"]["val"]["recordings"]
+    assert moved["moved_to_test"] == [rec]
+
+
+def test_move_to_test_rejects_unknown_recording(torso, tmp_path):
+    with pytest.raises(subprocess.CalledProcessError):
+        run_split(torso, tmp_path / "out", "--move-to-test", "99999")
+
+
 def test_ball_and_multiclass_share_test_recordings(torso, tmp_path):
     ball = run_split(torso, tmp_path / "ball")
     multi = run_split(torso, tmp_path / "multi", "--classes", "ball", "robot", "landmark")

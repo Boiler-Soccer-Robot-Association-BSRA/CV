@@ -18,6 +18,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import augment  # noqa: E402
+import download  # noqa: E402
 from yolo_io import read_labels, write_labels  # noqa: E402
 
 
@@ -95,6 +96,22 @@ def test_no_recording_in_two_splits(torso, tmp_path):
     with_ball = [p for p in (out / "labels").glob("*/*.txt") if p.read_text().strip()]
     assert len(with_ball) == 360
     assert 34 <= len(everything) - 360 <= 38
+
+
+def test_move_to_test_only_moves_that_recording(torso, tmp_path):
+    base = run_split(torso, tmp_path / "base")
+    rec = base["splits"]["train"]["recordings"][0]
+    moved = run_split(torso, tmp_path / "moved", "--move-to-test", rec)
+    assert rec in moved["splits"]["test"]["recordings"]
+    assert rec not in moved["splits"]["train"]["recordings"]
+    assert set(base["splits"]["test"]["recordings"]) < set(moved["splits"]["test"]["recordings"])
+    assert base["splits"]["val"]["recordings"] == moved["splits"]["val"]["recordings"]
+    assert moved["moved_to_test"] == [rec]
+
+
+def test_move_to_test_rejects_unknown_recording(torso, tmp_path):
+    with pytest.raises(subprocess.CalledProcessError):
+        run_split(torso, tmp_path / "out", "--move-to-test", "99999")
 
 
 def test_ball_and_multiclass_share_test_recordings(torso, tmp_path):
@@ -177,6 +194,25 @@ def test_augment_writes_matching_labels(torso, tmp_path):
         check=False,
     )
     assert bad.returncode != 0
+
+
+def test_augment_rejects_all_zero_probabilities():
+    img = np.zeros((10, 10, 3), dtype=np.uint8)
+    with pytest.raises(ValueError):
+        augment.augment(img, np.zeros((0, 4)), random.Random(0), 0, 0, 0)
+
+
+def test_download_skips_duplicate_archives():
+    names = ["reality.zip", "simulation.zip", "reality/train.zip", "reality/test.zip"]
+    picked = [n for n in names if download.wanted(n, "reality", "all")]
+    assert picked == ["reality/train.zip", "reality/test.zip"]
+
+
+def test_download_split_applies_to_archives():
+    assert download.wanted("reality/test.zip", "reality", "test")
+    assert not download.wanted("reality/train.zip", "reality", "test")
+    assert not download.wanted("reality/train/annotations.yaml", "reality", "test")
+    assert download.wanted("README.md", "reality", "test")
 
 
 def test_yolo_roundtrip(tmp_path):

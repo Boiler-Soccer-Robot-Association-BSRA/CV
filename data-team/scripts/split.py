@@ -194,6 +194,7 @@ def build(
     negatives: float,
     landmark_size: float = DEFAULT_LANDMARK_SIZE,
     copy: bool = False,
+    move_to_test: tuple = (),
 ) -> dict:
     images = load_torso(torso_dir)
     objects = {n: object_boxes(e, classes, landmark_size) for n, e in images.items()}
@@ -203,6 +204,10 @@ def build(
     for name, entry in images.items():
         ball_counts[recording_of(name)] += len(object_boxes(entry, (BALL,)))
     assignment = assign_recordings(ball_counts, fractions, seed)
+    for rec in move_to_test:
+        if rec not in assignment:
+            sys.exit(f"--move-to-test: no recording {rec} in {torso_dir}")
+        assignment[rec] = "test"
 
     # 2. Images per split: all with objects + seeded sample of confirmed-empty ones.
     rng = random.Random(seed)
@@ -270,6 +275,7 @@ def build(
         "seed": seed,
         "fractions": fractions,
         "split_by": "recording, assigned by ball count",
+        "moved_to_test": sorted(move_to_test, key=lambda r: (len(r), r)),
         "negatives_per_positive": negatives,
         "landmark_box_fraction": landmark_size if LANDMARK in classes else None,
         "fingerprint": fingerprint,
@@ -306,6 +312,13 @@ def main() -> None:
         help="Landmark box side as a share of image width (default 0.05)",
     )
     parser.add_argument("--copy", action="store_true", help="Copy images instead of symlinking")
+    parser.add_argument(
+        "--move-to-test",
+        nargs="+",
+        default=[],
+        metavar="RECORDING",
+        help="Force these recordings into test, e.g. 180 for more varied tiny balls",
+    )
     args = parser.parse_args()
     if not 0 < args.val + args.test < 1:
         sys.exit("--val + --test must be between 0 and 1")
@@ -322,6 +335,7 @@ def main() -> None:
         args.negatives,
         args.landmark_size,
         args.copy,
+        tuple(args.move_to_test),
     )
 
     print(f"\nWrote {out}  (seed {info['seed']}, fingerprint {info['fingerprint']})")

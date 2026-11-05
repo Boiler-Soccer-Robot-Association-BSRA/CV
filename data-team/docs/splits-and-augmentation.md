@@ -74,12 +74,48 @@ comparable on the same split.
 - Images are **symlinked**, not copied. Use `--copy` to move the folder
   to another computer.
 
+### Forcing recordings into test: `--move-to-test`
+
+```bash
+python data-team/scripts/split.py --move-to-test 180 --out data-team/datasets/ball_r180
+```
+
+`--move-to-test` takes one or more recording numbers and puts every frame
+of those recordings into **test**, wherever the seeded split would have
+placed them. Every other recording stays where it was, so the moved
+recordings simply leave train (or val).
+An unknown recording number stops the script with an error. The moved
+recordings are listed under `moved_to_test` in `split_info.yaml`.
+
+Use it when the test set is missing a kind of footage. Recording 180
+(Iran Open 2018, Humanoid League, robot camera) is moved to test because
+the default test set's tiny balls (< 20 px wide) were almost all one
+stationary ball in recording 151, repeated in 113 frames - so test wasn't
+really measuring tiny balls. With 180 moved, test has 871 balls
+(seed 42).
+
+Notes:
+
+- Use a **new `--out` folder** (like `ball_r180`) so the default
+  `datasets/ball/` split, and models' results on it, stay as they were.
+- Moving recordings changes train, so a model trained on `ball/` must not
+  be evaluated on `ball_r180/`'s test set: recording 180 was in its
+  training data. Retrain on the new split first.
+- Moved recordings don't count toward the ~10% targets, so test ends up
+  bigger than 10%.
+- Review of the tiny balls in the `ball_r180` test set (Nov 2026): 6 of
+  the 63 "tiny" boxes outside recording 151 are big balls cut off at the
+  image edge (narrow only because they're clipped), and 4 in recording 97
+  have no visible ball (likely hidden behind a robot's foot, but not
+  marked `concealed`). No other recording has a ball repeated in the
+  same spot.
+
 Output:
 
 ```
 data-team/datasets/ball/
 ├── data.yaml / data_aug.yaml
-├── split_info.yaml      # seed, settings, recordings per split, counts, fingerprint
+├── split_info.yaml      # seed, settings, moved_to_test, recordings per split, counts, fingerprint
 ├── augment_info.json
 ├── images/{train,val,test,train_aug}/
 ├── labels/{train,val,test,train_aug}/

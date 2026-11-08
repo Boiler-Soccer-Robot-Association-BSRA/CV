@@ -1,9 +1,12 @@
 # Multi-class detector (ball, robot, goalpost, landmark) on data-team's real
-# split. Replaces multiclass_v1 (placeholder split). Build the dataset first:
-#   python data-team/scripts/split.py --classes ball robot goalpost landmark
+# split, with recording 180 held out for testing like ball_v4, so both are
+# scored on the same test recordings. Replaces multiclass_v1 (placeholder
+# split). Build the dataset first:
+#   python data-team/scripts/split.py --classes ball robot goalpost landmark \
+#       --move-to-test 180 --out data-team/datasets/multiclass_r180
 name: multiclass_v2
 model: yolov8n.pt
-dataset: ../../data-team/datasets/multiclass/data.yaml
+dataset: ../../data-team/datasets/multiclass_r180/data.yaml
 epochs: 40
 imgsz: 640
 batch: 16

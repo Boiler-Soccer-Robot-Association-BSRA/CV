@@ -108,14 +108,39 @@ Notes:
   image edge (narrow only because they're clipped), and 4 in recording 97
   have no visible ball (likely hidden behind a robot's foot, but not
   marked `concealed`). No other recording has a ball repeated in the
-  same spot.
+  same spot. The 4 hidden balls are now dropped by `label_fixes.yaml`
+  (next section); the clipped balls are real and stay.
+
+### Dropping wrong labels: `label_fixes.yaml`
+
+`split.py` drops every box listed in
+[`data-team/label_fixes.yaml`](../label_fixes.yaml): TORSO-21 labels with
+nothing visible in them, which no model could find. Each entry names the
+image, the class, the box in TORSO-21's pixels and the reason.
+
+- The only rule for adding one: **nothing visible in the box**. Write the
+  reason, so every model is scored the same way.
+- A fix never moves a recording: recordings are still assigned to splits
+  by their original ball counts. An image left with no boxes is dropped
+  like any other unlabeled image.
+- A fix whose image is in the download but whose box isn't stops the
+  script, so a stale file can't go unnoticed.
+- `split_info.yaml` records `label_fixes_applied` (boxes dropped).
+  `--no-label-fixes` builds the split without them; `--label-fixes PATH`
+  uses another file.
+
+The 4 fixes so far are all in recording 97's test frames, so training
+data is unchanged and models trained before them don't need retraining:
+just re-run `split.py` and evaluate again. With them, the default split's
+test set has 620 balls (fingerprint `5e958505b9bbcd71`) and
+`ball_r180`'s has 867 (`963272dac0b46f47`).
 
 Output:
 
 ```
 data-team/datasets/ball/
 ├── data.yaml / data_aug.yaml
-├── split_info.yaml      # seed, settings, moved_to_test, recordings per split, counts, fingerprint
+├── split_info.yaml      # seed, settings, moved_to_test, label_fixes_applied, recordings per split, counts, fingerprint
 ├── augment_info.json
 ├── images/{train,val,test,train_aug}/
 ├── labels/{train,val,test,train_aug}/

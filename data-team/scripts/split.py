@@ -25,6 +25,9 @@ How the split is made (details: data-team/docs/splits-and-augmentation.md):
     datasets test on exactly the same recordings.
   - Each split keeps every image with an object of --classes, plus some
     images annotators confirmed contain none of them (negatives).
+  - Boxes listed in data-team/label_fixes.yaml (labels with nothing visible
+    in them) are dropped. Recordings are still assigned by their original
+    ball counts, so a fix never moves a recording.
 
 Same download + same --seed => identical split. split_info.yaml lists every
 recording in every split and a fingerprint to compare with teammates.
@@ -72,6 +75,7 @@ DEFAULT_SEED = 42
 
 DATASETS_DIR = REPO_ROOT / "data-team" / "datasets"
 DEFAULT_TORSO_DIR = DATASETS_DIR / "TORSO-21"
+DEFAULT_LABEL_FIXES = REPO_ROOT / "data-team" / "label_fixes.yaml"
 SPLITS = ("train", "val", "test")
 SUPPORTED_CLASSES = (BALL, ROBOT, GOALPOST, LANDMARK)  # field_line: no boxes, by decision
 DEFAULT_LANDMARK_SIZE = 0.05  # landmark box side, as a share of image width
@@ -127,6 +131,44 @@ def object_boxes(image: dict, classes, landmark_size: float = DEFAULT_LANDMARK_S
             continue
         objects.append((ours, (float(x0), float(y0), float(x1), float(y1))))
     return objects
+
+
+def load_label_fixes(path: Path) -> list:
+    """The `drop` entries of a label-fixes file: [{image, class, box, reason}]."""
+    fixes = yaml.safe_load(path.read_text()).get("drop") or []
+    for fix in fixes:
+        if not {"image", "class", "box"} <= fix.keys() or len(fix["box"]) != 4:
+            sys.exit(f"{path}: each fix needs image, class and a 4-number box: {fix}")
+    return fixes
+
+
+def apply_label_fixes(objects: dict, images: dict, fixes: list) -> int:
+    """Drop each fixed box from `objects` (in place). Returns how many were dropped.
+
+    Fixes for images not in this download, or for classes not being built,
+    are skipped. A fix whose image is here but has no such box in TORSO-21
+    stops the script: the fixes file is out of date."""
+
+    def same(a, b):
+        return all(abs(x - y) <= 1 for x, y in zip(a, b))
+
+    dropped = 0
+    for fix in fixes:
+        name, cls, box = fix["image"], fix["class"], [float(v) for v in fix["box"]]
+        if name not in images:
+            continue
+        raw = [
+            ann["vector"]
+            for ann in images[name].get("annotations") or []
+            if TORSO_TO_OURS.get(ann.get("type")) == cls and len(ann.get("vector") or []) == 2
+        ]
+        boxes = [[min(xs), min(ys), max(xs), max(ys)] for xs, ys in (zip(*v) for v in raw)]
+        if not any(same(b, box) for b in boxes):
+            sys.exit(f"Label fix doesn't match any {cls} box in {name}: {fix['box']}")
+        kept = [(c, b) for c, b in objects[name] if not (c == cls and same(b, box))]
+        dropped += len(objects[name]) - len(kept)
+        objects[name] = kept
+    return dropped
 
 
 def confirmed_empty(image: dict, classes) -> bool:
@@ -195,11 +237,14 @@ def build(
     landmark_size: float = DEFAULT_LANDMARK_SIZE,
     copy: bool = False,
     move_to_test: tuple = (),
+    label_fixes: list = (),
 ) -> dict:
     images = load_torso(torso_dir)
     objects = {n: object_boxes(e, classes, landmark_size) for n, e in images.items()}
+    fixes_applied = apply_label_fixes(objects, images, label_fixes)
 
-    # 1. Recordings -> splits, by ball count (same for every --classes).
+    # 1. Recordings -> splits, by ball count (same for every --classes; label
+    #    fixes not applied, so they never change which split a recording is in).
     ball_counts = defaultdict(int)
     for name, entry in images.items():
         ball_counts[recording_of(name)] += len(object_boxes(entry, (BALL,)))
@@ -276,6 +321,7 @@ def build(
         "fractions": fractions,
         "split_by": "recording, assigned by ball count",
         "moved_to_test": sorted(move_to_test, key=lambda r: (len(r), r)),
+        "label_fixes_applied": fixes_applied,
         "negatives_per_positive": negatives,
         "landmark_box_fraction": landmark_size if LANDMARK in classes else None,
         "fingerprint": fingerprint,
@@ -319,6 +365,15 @@ def main() -> None:
         metavar="RECORDING",
         help="Force these recordings into test, e.g. 180 for more varied tiny balls",
     )
+    parser.add_argument(
+        "--label-fixes",
+        type=Path,
+        default=DEFAULT_LABEL_FIXES,
+        help="Boxes to drop (default data-team/label_fixes.yaml)",
+    )
+    parser.add_argument(
+        "--no-label-fixes", action="store_true", help="Keep every TORSO-21 box as it is"
+    )
     args = parser.parse_args()
     if not 0 < args.val + args.test < 1:
         sys.exit("--val + --test must be between 0 and 1")
@@ -336,9 +391,11 @@ def main() -> None:
         args.landmark_size,
         args.copy,
         tuple(args.move_to_test),
+        [] if args.no_label_fixes else load_label_fixes(args.label_fixes),
     )
 
     print(f"\nWrote {out}  (seed {info['seed']}, fingerprint {info['fingerprint']})")
+    print(f"Label fixes applied: {info['label_fixes_applied']} boxes dropped")
     for split, c in info["splits"].items():
         objs = ", ".join(f"{n} {name}" for name, n in c["objects"].items())
         print(

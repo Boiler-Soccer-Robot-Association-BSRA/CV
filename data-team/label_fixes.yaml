@@ -1,0 +1,30 @@
+# Labels that split.py drops when it builds a dataset.
+#
+# Each entry is one TORSO-21 box that shows no visible object, so no model
+# could find it. Boxes are [x_min, y_min, x_max, y_max] in pixels, exactly as
+# in TORSO-21's annotations.yaml. Only remove labels by this rule (nothing
+# visible in the box), and add the reason, so every model is scored the same
+# way. Skip the whole file with `split.py --no-label-fixes`.
+#
+# Dropping a box never moves a recording: recordings are still assigned to
+# splits by their original ball counts.
+
+drop:
+  # Tiny-ball review, Nov 2026 (Gabriella; checked again by Hossein). The ball
+  # is hidden behind a robot's foot but not marked `concealed`.
+  - image: 97-26_01_2018__18_40_34_1154_upper.png
+    class: ball
+    box: [341, 148, 355, 159]
+    reason: ball hidden behind a robot's foot
+  - image: 97-26_01_2018__18_40_34_1165_upper.png
+    class: ball
+    box: [386, 146, 398, 160]
+    reason: ball hidden behind a robot's foot
+  - image: 97-26_01_2018__18_40_34_1375_upper.png
+    class: ball
+    box: [142, 117, 157, 132]
+    reason: ball hidden behind a robot's foot
+  - image: 97-26_01_2018__18_40_34_1381_upper.png
+    class: ball
+    box: [250, 141, 266, 158]
+    reason: ball hidden behind a robot's foot

@@ -12,10 +12,10 @@ What's actually implemented today, not the roadmap:
 |---|---|---|
 | Shared types & config (`shared/`) | **Working** | `BoundingBox`, `Detection`, `Position2D`, `PerceptionObject` dataclasses and the YAML config loader are implemented and usable — see [Data contracts](#data-contracts) below. |
 | Data pipeline (`data-team/`) | **Working (ball + multi-class)** | `scripts/download.py` fetches TORSO-21; `split.py` builds a reproducible train/val/test split by recording (seed 42) for ball or ball/robot/goalpost/landmark; `augment.py` adds lighting/blur/crop copies of the training split. Output follows detection-team's [Dataset contract](detection-team/README.md#dataset-contract). See [data-team/docs/splits-and-augmentation.md](data-team/docs/splits-and-augmentation.md). `convert.py` is still a skeleton. |
-| Detection (`detection-team/`) | **Working (ball)** | `inference/detector.py`'s `Detector` turns a BGR frame into `list[Detection]` for any YOLO weights; `scripts/quickstart.py`, `inference/visualize.py` and the eval harness all run through it. `training/train.py` / `training/eval.py` train and evaluate from a config. **`ball_v4`** reaches 0.80 recall as scored (0.91 counting one stationary ball in recording 151 once) / 0.92 precision on data-team's held-out test recordings plus recording 180, at 31 FPS on a MacBook CPU (43 FPS as ONNX). That's borderline against the 0.90 recall target; tiny balls (68% found) are the weak spot; see [detection-team results](detection-team/README.md#results). Weights aren't in git (share them via the team drive). Multi-class (ball, robot, goalpost, landmark) is training; field_line is intentionally not in the box detector. |
+| Detection (`detection-team/`) | **Working (ball)** | `inference/detector.py`'s `Detector` turns a BGR frame into `list[Detection]` for any YOLO weights; `scripts/quickstart.py`, `inference/visualize.py` and the eval harness all run through it. `training/train.py` / `training/eval.py` train and evaluate from a config. **`ball_v4`** reaches 0.80 recall as scored (0.915 counting one stationary ball in recording 151 once) / 0.92 precision on data-team's held-out test recordings plus recording 180, at 31 FPS on a MacBook CPU (43 FPS as ONNX). The team counts the 0.90 recall target as met, borderline (Nov 8), and reports both numbers; tiny balls (72% found) are the weak spot; see [detection-team results](detection-team/README.md#results). Weights aren't in git (share them via the team drive). Multi-class (ball, robot, goalpost, landmark) is training; field_line is intentionally not in the box detector. |
 | Calibration (`integration-team/calibration/`) | **Partial** | `calibrate.py` is implemented and tested on rendered board images; `CALIBRATION_GUIDE.md` covers printing and photos. No real camera has been calibrated yet: the camera (See3CAM_24CUG) is ordered and the checkerboard is being printed (Nov 8). |
 | Ground-plane projection (`integration-team/geometry/`) | **Not started** | `projection.py` is a skeleton. |
-| ROS 2 packaging (`integration-team/ros2_nodes/`, `messages/`) | **Not started** | Node files and the message-conversion stub exist; no ROS 2 message schema has been defined yet. |
+| ROS 2 packaging (`integration-team/ros2_nodes/`, `messages/`, `ros_ws/`) | **Partial** | The message schema is defined (#33): `BoundingBox`, `Detection`, `Position2D` and `PerceptionObject` `.msg` files in `ros_ws/src/my_robot_controller/msg/`, matching `shared/types.py`. `to_ros_message()` is still a stub and no perception node publishes them yet. |
 | Evaluation & benchmarking (`testing-deployment-team/`) | **Partial** | `tests/eval_harness.py` is implemented: given a manifest + detector it computes precision/recall/mAP at IoU 0.5 and ms/frame, and gates on `benchmarks/baseline.json`; `--report-dir` also writes a visual HTML report (`tests/eval_report.py`) drawing every frame's ground truth vs. predictions as correct / false alarm / missed. Runs in CI against a bundled dummy detector and tiny synthetic fixture dataset; `tests/pretrained_yolo_detector.py` wraps stock COCO YOLO as a stand-in for runs on real images. Swap in a real model and dataset once they exist. `benchmarks/inference_speed.py` and `deployment/export_onnx.py` are still skeletons. |
 
 > **Keep this current:** if you implement a stage, update its row in
@@ -112,14 +112,18 @@ world coordinates
 | `position` | `Position2D` | Projected ground-plane position |
 | `timestamp` | `float \| None` | Carried over from the source `Detection` |
 
-**ROS 2 perception message:** **not yet defined.**
-[`integration-team/messages/perception_message.py`](integration-team/messages/perception_message.py)
-has a `to_ros_message(obj: PerceptionObject)` function stub, but no
-actual ROS 2 message type/schema has been created — no `.msg` file, no
-field list beyond what `PerceptionObject` already has above. Owned by
-integration-team, planned for November (see
-[integration-team/README.md](integration-team/README.md#semester-roadmap)).
-Once it exists, its fields should be documented here.
+**ROS 2 perception messages:** defined in
+[`integration-team/ros_ws/src/my_robot_controller/msg/`](integration-team/ros_ws/src/my_robot_controller/msg/)
+(#33), one `.msg` per type above with the same field names:
+`BoundingBox` (`float32` corners), `Detection` (`string class_name`,
+`float32 confidence`, `BoundingBox bbox`, `float64 timestamp`),
+`Position2D` (`float32 x, y`) and `PerceptionObject` (`string
+class_name`, `float32 confidence`, `Position2D position`, `float64
+timestamp`). Open question: a ROS field can't be `None`, so the team
+still has to agree what an unset `timestamp` becomes (for example
+`0.0`). Converting a `PerceptionObject` to the message
+([`messages/perception_message.py`](integration-team/messages/perception_message.py)'s
+`to_ros_message`) is still a stub.
 
 ## Diagram
 

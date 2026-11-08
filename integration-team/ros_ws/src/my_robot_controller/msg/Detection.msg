@@ -1,0 +1,3 @@
+string class_name
+float64 confidence
+BoundingBox bbox

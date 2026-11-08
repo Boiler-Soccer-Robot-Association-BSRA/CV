@@ -1,6 +1,4 @@
-std_msgs/Header header
-string object_id
-string classification
-float64 confidence
-BoundingBox bbox
+string class_name
+float32 confidence
 Position2D position
+float64 timestamp

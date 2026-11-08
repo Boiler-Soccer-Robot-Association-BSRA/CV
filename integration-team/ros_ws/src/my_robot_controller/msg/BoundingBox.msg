@@ -1,4 +1,4 @@
-float64 x
-float64 y
-float64 width
-float64 height
+float32 x_min
+float32 y_min
+float32 x_max
+float32 y_max

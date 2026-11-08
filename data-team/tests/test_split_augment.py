@@ -114,6 +114,40 @@ def test_move_to_test_rejects_unknown_recording(torso, tmp_path):
         run_split(torso, tmp_path / "out", "--move-to-test", "99999")
 
 
+def write_fix(torso: Path, path: Path, shift: int = 0) -> str:
+    """A label-fixes file dropping the first ball box in the fake train/ half."""
+    images = yaml.safe_load((torso / "reality" / "train" / "annotations.yaml").read_text())
+    for name, entry in sorted(images["images"].items()):
+        for ann in entry["annotations"]:
+            if ann["type"] == "ball" and ann.get("vector"):
+                (x0, y0), (x1, y1) = ann["vector"]
+                box = [x0 + shift, y0, x1, y1]
+                fix = {"image": name, "class": "ball", "box": box, "reason": "test"}
+                path.write_text(yaml.safe_dump({"drop": [fix]}))
+                return name
+    raise AssertionError("fake TORSO-21 has no ball")
+
+
+def test_label_fixes_drop_only_that_box(torso, tmp_path):
+    fixes = tmp_path / "fixes.yaml"
+    write_fix(torso, fixes)
+    base = run_split(torso, tmp_path / "base", "--no-label-fixes")
+    fixed = run_split(torso, tmp_path / "fixed", "--label-fixes", str(fixes))
+    assert fixed["label_fixes_applied"] == 1
+    assert base["label_fixes_applied"] == 0
+    balls = sum(fixed["splits"][s]["objects"]["ball"] for s in SPLITS)
+    assert balls == sum(base["splits"][s]["objects"]["ball"] for s in SPLITS) - 1
+    for split in SPLITS:  # a fix never moves a recording
+        assert fixed["splits"][split]["recordings"] == base["splits"][split]["recordings"]
+
+
+def test_label_fix_that_matches_nothing_fails(torso, tmp_path):
+    fixes = tmp_path / "fixes.yaml"
+    write_fix(torso, fixes, shift=5)
+    with pytest.raises(subprocess.CalledProcessError):
+        run_split(torso, tmp_path / "out", "--label-fixes", str(fixes))
+
+
 def test_ball_and_multiclass_share_test_recordings(torso, tmp_path):
     ball = run_split(torso, tmp_path / "ball")
     multi = run_split(torso, tmp_path / "multi", "--classes", "ball", "robot", "landmark")

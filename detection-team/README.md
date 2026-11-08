@@ -37,8 +37,9 @@ Progress markers reflect what's visible in the repo as of Oct 18.
   [Training a model](#training-a-model))* — Once
   data-team has a first train/val/test split, review
   it and set up a training config (`configs/`) for ball detection.
-- **Week 5** *(done: `ball_v2` trained on data-team's split, 0.79 test
-  recall as scored, 0.947 counting recording 151's stationary ball once;
+- **Week 5** *(done: `ball_v2` trained on data-team's split, 0.80 test
+  recall as scored, 0.955 counting recording 151's stationary ball once
+  (after the Nov 8 label fixes);
   target moved to Nov 15; see [Results](#results))* — Train the
   first small YOLO model on ball detection (`training/train.py`).
 - **Week 6** *(done: `training/eval.py`, `inference/detector.py`,
@@ -54,7 +55,8 @@ Progress markers reflect what's visible in the repo as of Oct 18.
 
 - **Week 7** *(in progress: `multiclass_v1` training on Colab on the
   placeholder split; `configs/multiclass_v2.yaml` uses data-team's
-  multi-class split — see [Training on Google Colab](#training-on-google-colab))* — Once
+  multi-class split with recording 180 held out (`multiclass_r180`, same
+  test recordings as `ball_v4`); not trained yet — see [Training on Google Colab](#training-on-google-colab))* — Once
   data-team's expanded labels start coming in, begin
   training on robots and goalposts in addition to the ball
   (`shared/classes.py`).
@@ -153,6 +155,19 @@ coco = Detector("yolov8n.pt", class_map=COCO_CLASS_MAP)  # stock COCO: keep "spo
 - `timestamp` should be the frame's capture time; leave it `None` for
   static images, per the `Detection` contract in
   [ARCHITECTURE.md](../ARCHITECTURE.md#data-contracts).
+
+**Sample output for integration-team:**
+[`samples/ball_v4_detections.json`](samples/ball_v4_detections.json) is
+`ball_v4`'s output (conf 0.20) on one frame from each of the 9 test
+recordings in `ball_r180`: image name, size, and each `Detection` with exactly
+the fields above. `timestamp` is null because these are still images.
+A frame with no detections either has no ball or the model missed it.
+Make your own with:
+
+```bash
+python detection-team/inference/export_detections.py detection-team/models/ball_v4.pt \
+    path/to/frames/ --conf 0.20 --out my_detections.json   # --fps 30 adds fake timestamps
+```
 
 ## Training a model
 
@@ -260,19 +275,26 @@ switching datasets is a one-line config change:
 
 ## Results
 
-**Ball target (90% recall, 30 FPS on CPU; due Nov 15): met by one point
-if recording 151's stationary ball counts once, not met as scored.**
-`ball_v4`, on the harder test set that adds recording 180, finds **0.910
-of the balls counting that ball once (0.799 as scored)** at conf 0.20,
-with 0.921 precision, at 31 FPS on a MacBook CPU (43 FPS as ONNX). One
-point is inside our ~3-point run-to-run noise, so treat it as borderline.
-The remaining weak spot is tiny balls: it finds **42 of 62 (68%)**
-outside recording 151. Whether to call the target met is a team decision.
+**Ball target (90% recall, 30 FPS on CPU; due Nov 15): met, borderline
+(team decision, Nov 8).** `ball_v4`, on the harder test set that adds
+recording 180, finds **0.915 of the balls counting recording 151's
+stationary ball once (0.803 as scored)** at conf 0.20, with 0.921
+precision, at 31 FPS on a MacBook CPU (43 FPS as ONNX). We always report
+both numbers. 1.5 points is inside our ~3-point run-to-run noise, so a
+retrain could land below the target. The remaining weak spot is tiny
+balls: it finds **42 of 58 (72%)** outside recording 151.
+
+All numbers in this section are on the test sets after the Nov 8 label
+fixes ([`data-team/label_fixes.yaml`](../data-team/label_fixes.yaml)):
+4 labels in recording 97 where the ball is hidden behind a robot's foot
+are dropped. No training data changed, so no model was retrained.
+CPU speeds are from the earlier runs: dropping labels doesn't change
+them.
 
 ### ball_v4 (recording 180 held out for testing)
 
 data-team's split with `--move-to-test 180` (fingerprint
-`580fbdea1f1d0835`): 9 test recordings, 949 frames, 871 balls, 63
+`963272dac0b46f47`): 9 test recordings, 945 frames, 867 balls, 59
 distinct tiny (under 20 px) balls instead of 9. Trained on Colab for all
 30 epochs. Numbers here aren't comparable with the `ball_v2` table below:
 this test set is bigger and harder, and `ball_v2` trained on recording
@@ -280,47 +302,48 @@ this test set is bigger and harder, and `ball_v2` trained on recording
 
 | Model | Confidence cutoff | Precision | Recall | mAP@0.5 | CPU speed |
 |---|---|---|---|---|---|
-| `ball_v4` | 0.25 (default) | 0.939 | 0.792 | 0.790 | 32 FPS |
-| **`ball_v4`** | **0.20** | **0.921** | **0.799** | **0.796** | **31 FPS** |
-| `ball_v4`, recording 151's ball counted once | 0.20 | — | 0.910 | — | — |
+| `ball_v4` | 0.25 (default) | 0.939 | 0.796 | 0.793 | 32 FPS |
+| **`ball_v4`** | **0.20** | **0.921** | **0.803** | **0.800** | **31 FPS** |
+| `ball_v4`, recording 151's ball counted once | 0.20 | — | 0.915 | — | — |
 | `ball_v4` exported to ONNX | 0.20 | — | — | — | 43 FPS |
 
-- **Recall by ball width** (conf 0.20): under 20 px 47 of 175 (5 of
-  them in recording 151's 113 frames; 42 of 62 elsewhere), 20–40 px
+- **Recall by ball width** (conf 0.20): under 20 px 47 of 171 (5 of
+  them in recording 151's 113 frames; 42 of 58 elsewhere), 20–40 px
   91%, 40–80 px 94%, over 80 px 96%.
 - **Recording 180's tiny balls**: 40 of 54 found (74%).
-- **Same as `ball_v2` on the old test recordings**: 0.785 recall / 0.896
-  precision vs `ball_v2`'s 0.793 / 0.890, within noise, even though
+- **Same as `ball_v2` on the old test recordings**: 0.790 recall / 0.896
+  precision vs `ball_v2`'s 0.798 / 0.892, within noise, even though
   `ball_v4` trained on one recording fewer.
 - False alarms: 60, of which 28 are in recording 243 and 13 in 151.
 
 ### ball_v2 (data-team's split)
 
 data-team's **test** split (`split.py`, seed 42, fingerprint
-`837ca5b99e04eaf8`): 8 TORSO-21 recordings `ball_v2` was not trained
-on, 686 frames, 624 balls. Precision/recall at IoU 0.5; CPU speed on an
+`5e958505b9bbcd71`): 8 TORSO-21 recordings `ball_v2` was not trained
+on, 682 frames, 620 balls. Precision/recall at IoU 0.5; CPU speed on an
 M3 Max with `--device cpu`.
 
 | Model | Confidence cutoff | Precision | Recall | mAP@0.5 | CPU speed |
 |---|---|---|---|---|---|
-| `ball_v2` | 0.25 (default) | 0.906 | 0.788 | 0.786 | 30 FPS |
-| **`ball_v2`** | **0.20** | **0.890** | **0.793** | **0.790** | **30 FPS** |
-| `ball_v2` exported to ONNX | 0.20 | 0.894 | 0.800 | 0.795 | 42 FPS |
-| `ball_v2`, test minus recording 151 | 0.20 | 0.924 | 0.949 | — | — |
-| `ball_v2`, Humanoid League venues only | 0.20 | 0.977 | 0.968 | — | — |
-| `ball_v2_aug` | 0.20 | 0.883 | 0.777 | 0.775 | 30 FPS (43 ONNX) |
-| `ball_v3_960` | 0.20 | 0.855 | 0.777 | 0.772 | 17 FPS (19 ONNX) |
+| `ball_v2` | 0.25 (default) | 0.908 | 0.794 | 0.791 | 30 FPS |
+| **`ball_v2`** | **0.20** | **0.892** | **0.798** | **0.795** | **30 FPS** |
+| `ball_v2` exported to ONNX | 0.20 | 0.896 | 0.805 | 0.800 | 42 FPS |
+| `ball_v2`, test minus recording 151 | 0.20 | 0.926 | 0.957 | — | — |
+| `ball_v2`, Humanoid League venues only (before the label fixes) | 0.20 | 0.977 | 0.968 | — | — |
+| `ball_v2_aug` | 0.20 | 0.883 | 0.782 | 0.780 | 30 FPS (43 ONNX) |
+| `ball_v3_960` | 0.20 | 0.855 | 0.782 | 0.777 | 17 FPS (19 ONNX) |
 
 Neither `ball_v2_aug` (offline augmentation) nor `ball_v3_960` (960 px)
-beats `ball_v2`, so `ball_v2` stays our best model and we won't try an
-800 px config. All three score 0.949 recall without recording 151, and
+beats `ball_v2`, so we won't try an 800 px config. All three scored
+0.949 recall without recording 151 before the label fixes, and
 the gaps above are within our ~3-point run-to-run noise (Aditya's plain
 `ball_v2` run reached 0.816 at conf 0.25). Tiny balls (under 20 px) on
 the validation split, which helped pick each checkpoint: `ball_v2` 14 of
 23, `ball_v2_aug` 12, `ball_v3_960` 16. That's too few to rank them, but
 far below the 94% for bigger balls.
 
-- **Lowering the cutoff doesn't close the gap.** Recall by cutoff:
+- **Lowering the cutoff doesn't close the gap** (measured before the
+  label fixes, 624 balls). Recall by cutoff:
   0.05 → 0.849 (precision 0.71), 0.10 → 0.816, 0.20 → 0.793,
   0.30 → 0.780, 0.50 → 0.760 (precision 0.97). The missed balls get
   almost no score at all, so this needs a model change, not a setting.
@@ -336,7 +359,9 @@ far below the 94% for bigger balls.
 
 #### ball_v2 failure cases (for data-team)
 
-129 balls missed at conf 0.20:
+Measured before the Nov 8 label fixes (624 balls). The 4 dropped
+hidden-ball labels were among these misses. 129 balls missed at conf
+0.20:
 
 1. **Tiny balls: 108 of 121 balls under 20 px wide are missed (89%)**,
    versus 4–5% for every bigger size. 103 of those are in a single test
@@ -352,7 +377,7 @@ far below the 94% for bigger balls.
    tiny balls above).
 4. Next step: `configs/ball_v4.yaml` trains like `ball_v2` but holds out
    recording 180 (Iran Open 2018, Humanoid League, robot camera) for
-   testing. That takes the test set to 871 balls and 63 distinct tiny
+   testing. That takes the test set to 867 balls and 59 distinct tiny
    balls. Training already has 397 tiny balls, so more of them isn't the
    first thing to try.
 

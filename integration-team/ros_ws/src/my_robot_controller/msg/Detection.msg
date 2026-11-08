@@ -1,3 +1,4 @@
 string class_name
-float64 confidence
+float32 confidence
 BoundingBox bbox
+float64 timestamp

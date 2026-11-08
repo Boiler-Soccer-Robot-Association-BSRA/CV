@@ -111,7 +111,23 @@ If the error is too high:
 
 1. Record the camera, lens, resolution, square size, date and error with the
    saved parameters.
-2. Hand the parameters to `geometry/projection.py`.
+2. Hand the parameters to `geometry/projection.py`. It also needs where the
+   camera sits on the robot, which calibration can't measure. Measure it by hand
+   and add a `mount:` section to the saved YAML (meters and degrees; pitch is
+   positive when the camera tilts down):
+
+   ```yaml
+   mount:
+     height_m: 0.45   # lens height above the floor
+     pitch_deg: 20.0
+     roll_deg: 0.0
+     yaw_deg: 0.0
+     x_m: 0.0         # lens position ahead of the robot's origin
+     y_m: 0.0         # lens position left of the robot's origin
+   ```
+
+   Then `load_camera_params("camera_params.yaml")` reads both. Pitch and height
+   errors matter most: about 1° and 2 cm moves a point at 2 m by roughly 6 cm.
 3. For Week 8, set the tripod to the robot's camera height and tilt, and test on
    the floor. Height and tilt are measured separately from this calibration.
 4. Moving the camera to the robot doesn't require a new calibration, as long as

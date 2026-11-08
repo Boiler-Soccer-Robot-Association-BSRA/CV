@@ -260,17 +260,39 @@ switching datasets is a one-line config change:
 
 ## Results
 
-**The October milestone is not met yet: speed is met, recall is not.**
-`ball_v2` (trained on data-team's split) finds **79% of the balls** in
-data-team's held-out test recordings at conf 0.20; the target is 90%.
-Speed is fine: 30 FPS on a MacBook CPU, 42 FPS as ONNX. Almost all of
-the gap is **one stationary ball in recording 151**, repeated in 113
-frames (see
-[ball_v2 failure cases](#ball_v2-failure-cases-for-data-team)). We report
-both numbers: **0.793 as scored, 0.947 counting that ball once** (as a
-miss). Neither proves tiny balls work: this test set has only 9 distinct
-tiny balls, so the target stays open, now due **Nov 15**, and `ball_v4`
-adds a harder test set.
+**Ball target (90% recall, 30 FPS on CPU; due Nov 15): met by one point
+if recording 151's stationary ball counts once, not met as scored.**
+`ball_v4`, on the harder test set that adds recording 180, finds **0.910
+of the balls counting that ball once (0.799 as scored)** at conf 0.20,
+with 0.921 precision, at 31 FPS on a MacBook CPU (43 FPS as ONNX). One
+point is inside our ~3-point run-to-run noise, so treat it as borderline.
+The remaining weak spot is tiny balls: it finds **42 of 62 (68%)**
+outside recording 151. Whether to call the target met is a team decision.
+
+### ball_v4 (recording 180 held out for testing)
+
+data-team's split with `--move-to-test 180` (fingerprint
+`580fbdea1f1d0835`): 9 test recordings, 949 frames, 871 balls, 63
+distinct tiny (under 20 px) balls instead of 9. Trained on Colab for all
+30 epochs. Numbers here aren't comparable with the `ball_v2` table below:
+this test set is bigger and harder, and `ball_v2` trained on recording
+180.
+
+| Model | Confidence cutoff | Precision | Recall | mAP@0.5 | CPU speed |
+|---|---|---|---|---|---|
+| `ball_v4` | 0.25 (default) | 0.939 | 0.792 | 0.790 | 32 FPS |
+| **`ball_v4`** | **0.20** | **0.921** | **0.799** | **0.796** | **31 FPS** |
+| `ball_v4`, recording 151's ball counted once | 0.20 | — | 0.910 | — | — |
+| `ball_v4` exported to ONNX | 0.20 | — | — | — | 43 FPS |
+
+- **Recall by ball width** (conf 0.20): under 20 px 47 of 175 (5 of
+  them in recording 151's 113 frames; 42 of 62 elsewhere), 20–40 px
+  91%, 40–80 px 94%, over 80 px 96%.
+- **Recording 180's tiny balls**: 40 of 54 found (74%).
+- **Same as `ball_v2` on the old test recordings**: 0.785 recall / 0.896
+  precision vs `ball_v2`'s 0.793 / 0.890, within noise, even though
+  `ball_v4` trained on one recording fewer.
+- False alarms: 60, of which 28 are in recording 243 and 13 in 151.
 
 ### ball_v2 (data-team's split)
 

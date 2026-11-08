@@ -55,7 +55,8 @@ Progress markers reflect what's visible in the repo as of Oct 18.
 
 - **Week 7** *(in progress: `multiclass_v1` training on Colab on the
   placeholder split; `configs/multiclass_v2.yaml` uses data-team's
-  multi-class split — see [Training on Google Colab](#training-on-google-colab))* — Once
+  multi-class split with recording 180 held out (`multiclass_r180`, same
+  test recordings as `ball_v4`); not trained yet — see [Training on Google Colab](#training-on-google-colab))* — Once
   data-team's expanded labels start coming in, begin
   training on robots and goalposts in addition to the ball
   (`shared/classes.py`).
@@ -154,6 +155,19 @@ coco = Detector("yolov8n.pt", class_map=COCO_CLASS_MAP)  # stock COCO: keep "spo
 - `timestamp` should be the frame's capture time; leave it `None` for
   static images, per the `Detection` contract in
   [ARCHITECTURE.md](../ARCHITECTURE.md#data-contracts).
+
+**Sample output for integration-team:**
+[`samples/ball_v4_detections.json`](samples/ball_v4_detections.json) is
+`ball_v4`'s output (conf 0.20) on one frame from each of the 9 test
+recordings in `ball_r180`: image name, size, and each `Detection` with exactly
+the fields above. `timestamp` is null because these are still images.
+A frame with no detections either has no ball or the model missed it.
+Make your own with:
+
+```bash
+python detection-team/inference/export_detections.py detection-team/models/ball_v4.pt \
+    path/to/frames/ --conf 0.20 --out my_detections.json   # --fps 30 adds fake timestamps
+```
 
 ## Training a model
 

@@ -1,0 +1,120 @@
+{
+  "model": "ball_v4",
+  "conf": 0.2,
+  "frames": [
+    {
+      "image": "1028-img00986.png",
+      "width": 620,
+      "height": 480,
+      "detections": []
+    },
+    {
+      "image": "1029-img01059.png",
+      "width": 620,
+      "height": 480,
+      "detections": []
+    },
+    {
+      "image": "1033-img00365.png",
+      "width": 620,
+      "height": 480,
+      "detections": [
+        {
+          "class_name": "ball",
+          "confidence": 0.884,
+          "bbox": {
+            "x_min": 148.1,
+            "y_min": 372.8,
+            "x_max": 198.6,
+            "y_max": 423.3
+          },
+          "timestamp": null
+        }
+      ]
+    },
+    {
+      "image": "151-21_02_2018__17_23_31_0159_upper.png",
+      "width": 640,
+      "height": 480,
+      "detections": [
+        {
+          "class_name": "ball",
+          "confidence": 0.233,
+          "bbox": {
+            "x_min": 627.4,
+            "y_min": 90.5,
+            "x_max": 639.1,
+            "y_max": 101.8
+          },
+          "timestamp": null
+        }
+      ]
+    },
+    {
+      "image": "153-sequences_euro_ball_robot_1_b_00258.png",
+      "width": 800,
+      "height": 600,
+      "detections": [
+        {
+          "class_name": "ball",
+          "confidence": 0.825,
+          "bbox": {
+            "x_min": 444.7,
+            "y_min": 304.2,
+            "x_max": 482.4,
+            "y_max": 342.5
+          },
+          "timestamp": null
+        }
+      ]
+    },
+    {
+      "image": "180-frame1083.png",
+      "width": 640,
+      "height": 360,
+      "detections": [
+        {
+          "class_name": "ball",
+          "confidence": 0.879,
+          "bbox": {
+            "x_min": 208.1,
+            "y_min": 306.4,
+            "x_max": 233.8,
+            "y_max": 331.1
+          },
+          "timestamp": null
+        }
+      ]
+    },
+    {
+      "image": "243-01_06_2018__17_17_01_0379_lower.png",
+      "width": 320,
+      "height": 240,
+      "detections": [
+        {
+          "class_name": "ball",
+          "confidence": 0.372,
+          "bbox": {
+            "x_min": 0.0,
+            "y_min": 107.8,
+            "x_max": 11.6,
+            "y_max": 158.3
+          },
+          "timestamp": null
+        }
+      ]
+    },
+    {
+      "image": "615-frame7860.jpg",
+      "width": 640,
+      "height": 360,
+      "detections": []
+    },
+    {
+      "image": "97-26_01_2018__18_40_34_1263_upper.png",
+      "width": 640,
+      "height": 480,
+      "detections": []
+    }
+  ]
+}

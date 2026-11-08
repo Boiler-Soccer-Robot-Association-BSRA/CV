@@ -1,0 +1,4 @@
+string class_name
+float32 confidence
+Position2D position
+float64 timestamp

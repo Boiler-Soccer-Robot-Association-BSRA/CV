@@ -197,9 +197,19 @@ def test_load_camera_params_names_what_is_missing(tmp_path):
         projection.load_camera_params(tmp_path / "bad.yaml")
 
 
-def test_default_ball_radius_is_a_size_3_ball():
-    # Size 3: 58-61 cm circumference -> radius = C / (2 pi), about 9.2-9.7 cm.
-    assert 58 / (2 * math.pi * 100) <= projection.BALL_RADIUS_M <= 61 / (2 * math.pi * 100)
+def test_ball_radius_defaults_to_5_cm_with_a_7_cm_alternate():
+    assert projection.BALL_RADIUS_M == pytest.approx(0.05)
+    assert projection.BALL_RADIUS_ALT_M == pytest.approx(0.07)
+
+
+def test_alternate_ball_radius_changes_the_projected_ball_position():
+    params = make_params()
+    u, v = projection.ground_to_pixel(1.5, 0.0, params, plane_height_m=0.07)
+    ball = det(BALL, u - 15, v - 15, u + 15, v + 15)
+    alt = projection.project_to_ground_plane(ball, params, projection.BALL_RADIUS_ALT_M)
+    default = projection.project_to_ground_plane(ball, params)
+    assert alt.position.x == pytest.approx(1.5, abs=2e-3)
+    assert default.position.x > alt.position.x  # wrong (smaller) radius -> placed too far
 
 
 def test_load_camera_params_needs_a_mount_from_somewhere(tmp_path):

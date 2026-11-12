@@ -93,11 +93,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from shared.classes import BALL, LANDMARK  # noqa: E402
 from shared.types import Detection, PerceptionObject, Position2D  # noqa: E402
 
-BALL_RADIUS_M = 0.095
-"""Radius of the competition ball: a size 3 ball (58-61 cm around, so about
-19 cm across). A ball resting on the floor has its center this high up, which
-is the plane its box center is projected onto. Override per call with
-`ball_radius_m` if a different ball is used."""
+BALL_RADIUS_M = 0.05
+"""Radius of the competition ball: 5 cm (10 cm across), per the CV lead.
+An alternate ball size in use is 7 cm radius (BALL_RADIUS_ALT_M); pass
+`ball_radius_m=BALL_RADIUS_ALT_M` when that ball is on the field. A ball
+resting on the floor has its center this high up, which is the plane its
+box center is projected onto."""
+
+BALL_RADIUS_ALT_M = 0.07
+"""Alternate ball radius: 7 cm (14 cm across). Not the default; see
+BALL_RADIUS_M."""
 
 # A camera with zero pitch/roll/yaw looks straight ahead along robot +x.
 # Its optical axes, written as columns in the robot frame, are then:

@@ -43,7 +43,9 @@ Progress markers reflect what's visible in the repo as of Oct 1.
 
 - **Week 7** — Re-run the evaluation harness as detection-team's model
   expands to robots/goalposts/field lines/landmarks.
-- **Week 8** — Help validate ground-plane projection accuracy: compare
+- **Week 8** *(tool ready: `benchmarks/projection_accuracy.py`, see
+  [Projection accuracy check](#projection-accuracy-check); waiting on the
+  real camera for a real run)* — Help validate ground-plane projection accuracy: compare
   integration-team's projected robot-relative positions against known
   reference points.
 - **Week 9** — Continue validating calibration/projection accuracy as
@@ -177,6 +179,47 @@ Once a real model exists, re-run the harness against a real held-out
 set and overwrite `benchmarks/baseline.json` with those numbers (commit
 that change on its own so it's easy to see when/why the baseline
 moved).
+
+## Projection accuracy check
+
+`benchmarks/projection_accuracy.py` measures how far integration-team's
+projected positions (`integration-team/geometry/projection.py`) are from
+positions measured with a tape measure, and checks the milestone: error
+≤ 0.3 m at 2 m range.
+
+```bash
+python testing-deployment-team/benchmarks/projection_accuracy.py \
+    reference_points.csv --params camera_params.yaml
+```
+
+`camera_params.yaml` is `calibrate.py`'s output plus a `mount:` section
+(see `integration-team/calibration/CALIBRATION_GUIDE.md`, Step 6).
+
+**Setting up the rig.** Put the camera at the robot's camera height and
+tilt. Mark points on the floor with tape and measure each one from the
+robot's origin, which is the floor directly under the lens if the mount's
+`x_m`/`y_m` are 0. +x is forward and +y is left, in meters. Get several
+points near 2 m, some to the sides, plus nearer and farther ones to see
+how error grows with distance.
+
+**Two ways to fill in the CSV** (columns are documented in the script's
+docstring):
+
+| Mode | Each row has | What it tests |
+|---|---|---|
+| Pixel | `name,x_m,y_m,u,v`: the tape mark's pixel in one photo, read in any image viewer that shows cursor coordinates | Calibration, mount measurement and projection math |
+| Detection | `name,x_m,y_m,image`: a photo of a ball placed on the mark (needs `--weights`) | The full detect → project prototype (Week 9) |
+
+It prints every point's error, error by distance band, and a PASS/FAIL
+line. It writes JSON to `benchmarks/results/projection_accuracy.json`
+(gitignored), and exits nonzero unless the check passes. The check needs
+at least one point within 0.25 m of 2 m, and fails if any of those points
+is more than 0.3 m off or can't be projected. `--target-error`,
+`--target-range` and `--target-band` change those numbers.
+
+If error is consistently in one direction (all too far, or all too near),
+suspect the mount's pitch or height before the projection code. See the
+"If the numbers look wrong" table at the top of `projection.py`.
 
 ## First task
 

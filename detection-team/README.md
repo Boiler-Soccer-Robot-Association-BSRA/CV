@@ -53,10 +53,10 @@ Progress markers reflect what's visible in the repo as of Oct 18.
 
 ### November — Perception beyond bounding boxes
 
-- **Week 7** *(in progress: `multiclass_v1` training on Colab on the
-  placeholder split; `configs/multiclass_v2.yaml` uses data-team's
-  multi-class split with recording 180 held out (`multiclass_r180`, same
-  test recordings as `ball_v4`); not trained yet — see [Training on Google Colab](#training-on-google-colab))* — Once
+- **Week 7** *(done: `multiclass_v2` trained on data-team's multi-class
+  split with recording 180 held out (`multiclass_r180`, same test
+  recordings as `ball_v4`): 0.853 recall across all four classes, see
+  [multiclass_v2](#multiclass_v2-recording-180-held-out-for-testing))* — Once
   data-team's expanded labels start coming in, begin
   training on robots and goalposts in addition to the ball
   (`shared/classes.py`).
@@ -284,6 +284,13 @@ both numbers. 1.5 points is inside our ~3-point run-to-run noise, so a
 retrain could land below the target. The remaining weak spot is tiny
 balls: it finds **42 of 58 (72%)** outside recording 151.
 
+**Multi-class target (≥80% recall across ball, robot, goalpost and
+landmark; due Nov 30): met overall.** `multiclass_v2` finds **0.853** of
+all objects at conf 0.20 (0.834 precision), at about 31 FPS on CPU.
+Robot, goalpost and landmark are each above 0.80; **ball alone is
+0.790**, so if the target is read per class, ball is just short. For
+ball-only use, `ball_v4` is still the better model.
+
 All numbers in this section are on the test sets after the Nov 8 label
 fixes ([`data-team/label_fixes.yaml`](../data-team/label_fixes.yaml)):
 4 labels in recording 97 where the ball is hidden behind a robot's foot
@@ -418,6 +425,42 @@ balls). Precision/recall at IoU 0.5; CPU speed on an M3 Max with
   export pads every image to a fixed square; testing-deployment-team's
   `deployment/export_onnx.py` (December) is where that gets settled.
 
+### multiclass_v2 (recording 180 held out for testing)
+
+data-team's multi-class split with `--move-to-test 180` and the Nov 8
+label fixes (fingerprint `bb73dce2c8105037`, `multiclass_r180`): the same
+test recordings as `ball_v4`, 1,405 frames, 6,806 objects. `yolov8n`,
+640 px, trained on Colab for all 40 epochs (finished Nov 9). Tested on
+CPU, IoU 0.5:
+
+| Class | Objects | Recall | Precision | AP@0.5 |
+|---|---|---|---|---|
+| ball | 867 | 0.790 | 0.903 | 0.788 |
+| goalpost | 1,059 | 0.864 | 0.802 | 0.833 |
+| landmark | 3,701 | 0.857 | 0.844 | 0.840 |
+| robot | 1,179 | 0.876 | 0.793 | 0.847 |
+| **All classes, conf 0.20** | **6,806** | **0.853** | **0.834** | **mAP 0.827** |
+| All classes, conf 0.25 | 6,806 | 0.843 | 0.863 | mAP 0.819 |
+
+Per-class rows are `eval.py --only-classes <class>` at conf 0.20.
+
+- **All classes clear 0.80 recall except ball (0.790).** The overall
+  number is 0.853, so the target is met overall; whether it has to hold
+  per class is a team call, like the ball target.
+- **Ball: use `ball_v4` for ball-only work.** On the same 867 balls,
+  as scored, `ball_v4` gets 0.803 recall / 0.921 precision against
+  `multiclass_v2`'s 0.790 / 0.903. The gap is within run-to-run noise.
+  Counting recording 151's stationary ball once, `multiclass_v2` gets
+  0.907 (`ball_v4`: 0.915); tiny balls outside recording 151: 43 of 58
+  (`ball_v4`: 42).
+- **Up from `multiclass_v1`** (0.786 recall), and landmarks went from the
+  weakest class (AP 0.73) to 0.84. The test sets differ, so this is
+  only a rough comparison.
+- **Speed:** about 32 ms per frame (31 FPS) on a MacBook CPU for all
+  four classes. ONNX not measured yet.
+- Weights: `models/multiclass_v2.pt` (team drive's `BSRA-CV/models/`).
+  Eval JSONs: `runs/eval/mc2/`.
+
 ### multiclass_v1 (placeholder split)
 
 Trained on Colab (T4 GPU, 40 epochs, resumed once after a disconnect) on
@@ -434,8 +477,8 @@ recordings (2,097 frames, 7,489 objects), conf 0.25, IoU 0.5:
 
 - Close to the November target (≥80% recall across classes) already;
   landmarks (field-line crossings) are the weakest class.
-- Same caveat as `ball_v1`: this is the placeholder split, so the real
-  numbers come from `multiclass_v2` on data-team's split.
+- Same caveat as `ball_v1`: this is the placeholder split. The real
+  numbers are [`multiclass_v2`](#multiclass_v2-recording-180-held-out-for-testing)'s.
 - The model, its `.json` and a visual report are in the team drive's
   `BSRA-CV/` folder (see [Training on Google Colab](#training-on-google-colab)).
 

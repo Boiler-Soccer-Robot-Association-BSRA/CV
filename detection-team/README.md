@@ -284,12 +284,18 @@ both numbers. 1.5 points is inside our ~3-point run-to-run noise, so a
 retrain could land below the target. The remaining weak spot is tiny
 balls: it finds **42 of 58 (72%)** outside recording 151.
 
-**Multi-class target (≥80% recall across ball, robot, goalpost and
-landmark; due Nov 30): met overall.** `multiclass_v2` finds **0.853** of
-all objects at conf 0.20 (0.834 precision), at about 31 FPS on CPU.
-Robot, goalpost and landmark are each above 0.80; **ball alone is
-0.790**, so if the target is read per class, ball is just short. For
-ball-only use, `ball_v4` is still the better model.
+**Multi-class target (≥80% recall for each of ball, robot, goalpost and
+landmark; due Nov 30): met (decision, Nov 12).** `multiclass_v2` finds
+**0.853** of all objects at conf 0.20 (0.834 precision), at 32 FPS on CPU
+(44 FPS as ONNX). Robot, goalpost and landmark are each above 0.80. The
+target is read **per class**, with the same rule as the ball target:
+ball is **0.907 counting recording 151's stationary ball once (0.790 as
+scored)**, and we report both.
+
+**Model on the robot: `multiclass_v2` alone (decision, Nov 12).** Its
+ball score is within noise of `ball_v4`'s, one model is simpler for
+integration-team, and running two models on every frame would cost
+speed. `ball_v4` stays as a fallback.
 
 All numbers in this section are on the test sets after the Nov 8 label
 fixes ([`data-team/label_fixes.yaml`](../data-team/label_fixes.yaml)):
@@ -444,10 +450,10 @@ CPU, IoU 0.5:
 
 Per-class rows are `eval.py --only-classes <class>` at conf 0.20.
 
-- **All classes clear 0.80 recall except ball (0.790).** The overall
-  number is 0.853, so the target is met overall; whether it has to hold
-  per class is a team call, like the ball target.
-- **Ball: use `ball_v4` for ball-only work.** On the same 867 balls,
+- **All classes clear 0.80 recall.** Ball does with the count-once
+  rule (0.907); as scored it's 0.790. Decided Nov 12: the target holds
+  per class, using the same rule as the ball target.
+- **Ball, compared with `ball_v4`:** on the same 867 balls,
   as scored, `ball_v4` gets 0.803 recall / 0.921 precision against
   `multiclass_v2`'s 0.790 / 0.903. The gap is within run-to-run noise.
   Counting recording 151's stationary ball once, `multiclass_v2` gets
@@ -456,8 +462,10 @@ Per-class rows are `eval.py --only-classes <class>` at conf 0.20.
 - **Up from `multiclass_v1`** (0.786 recall), and landmarks went from the
   weakest class (AP 0.73) to 0.84. The test sets differ, so this is
   only a rough comparison.
-- **Speed:** about 32 ms per frame (31 FPS) on a MacBook CPU for all
-  four classes. ONNX not measured yet.
+- **Speed:** 31 ms per frame (32 FPS) on a MacBook CPU for all four
+  classes; **23 ms (44 FPS) as ONNX**, measured in the same session.
+  ONNX scores 0.850 recall / 0.822 precision, about the same as the
+  `.pt` file (0.853 / 0.834).
 - Weights: `models/multiclass_v2.pt` (team drive's `BSRA-CV/models/`).
   Eval JSONs: `runs/eval/mc2/`.
 

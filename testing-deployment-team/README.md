@@ -63,7 +63,8 @@ Progress markers reflect what's visible in the repo as of Oct 1.
 - **Week 11** *(speed benchmark done early, Nov 16: see
   [Inference speed](#inference-speed))* — Benchmark inference speed
   (`benchmarks/inference_speed.py`);
-  investigate ONNX export (`deployment/export_onnx.py`) and, if the
+  investigate ONNX export (`deployment/export_onnx.py`; *done early,
+  Nov 16: see [ONNX export](#onnx-export)*) and, if the
   future onboard computer is NVIDIA-based, begin studying TensorRT.
 - **Week 12** — Compile final documentation (`docs/`) covering training,
   testing, dataset preparation, and inference, so a new member could
@@ -232,6 +233,58 @@ decimal. That agrees with the eval-harness speeds in
 - Both clear the ≥10 Hz ROS 2 target with room to spare **on this laptop**.
   The robot's onboard computer will be slower; re-run this there before
   relying on it.
+
+## ONNX export
+
+`deployment/export_onnx.py` exports `.pt` weights to ONNX at the image
+size the model was trained at (read from the checkpoint; 640 for ours),
+and with `--check` scores the export against the `.pt` on a test set using
+the same code as `detection-team/training/eval.py`:
+
+```bash
+python testing-deployment-team/deployment/export_onnx.py \
+    detection-team/models/multiclass_v2.pt \
+    --output detection-team/models/multiclass_v2_dynamic.onnx --dynamic \
+    --check data-team/datasets/multiclass_r180/data.yaml --conf 0.20
+```
+
+It exits nonzero if precision or recall differ from the `.pt` by more than
+`--max-diff` (default 0.02). An `.onnx` is a model weight: it's gitignored
+and shared through the team drive, never committed.
+
+**Fixed or dynamic input.** Without `--dynamic` the file takes one fixed
+1x3x640x640 input, so every frame is padded to a square. With `--dynamic`
+it accepts any size and gets the same padding the `.pt` gets (a 640x480
+frame runs as 640x480), so it does less work per frame and its detections
+match the `.pt`'s.
+
+**Measured Nov 16**, MacBook Pro (M3 Max, CPU, onnxruntime 1.31.0), conf
+0.20, IoU 0.5, full test sets. FPS is from `inference_speed.py` (300 runs
+on multiclass_r180 test frames, same session for all six rows):
+
+| Weights | Test set | Precision | Recall | mAP@0.5 | FPS |
+|---|---|---|---|---|---|
+| `multiclass_v2.pt` | multiclass_r180 (1,405 frames, 6,806 objects) | 0.834 | 0.853 | 0.827 | 32.8 |
+| ONNX, fixed 640x640 | same | 0.822 | 0.850 | 0.823 | 42.2 |
+| **ONNX, `--dynamic`** | same | **0.834** | **0.853** | **0.827** | **54.7** |
+| `ball_v4.pt` | ball_r180 (945 frames, 867 balls) | 0.921 | 0.803 | 0.800 | 34.4 |
+| ONNX, fixed 640x640 | same | 0.916 | 0.810 | 0.806 | 45.3 |
+| **ONNX, `--dynamic`** | same | **0.921** | **0.803** | **0.800** | **59.2** |
+
+- **The hand-measured ONNX numbers hold.** The fixed export reproduces
+  what detection-team's README reports for `multiclass_v2` (0.850 recall /
+  0.822 precision, about 44 FPS) and for `ball_v4` (about 43 FPS).
+- **The small accuracy gap was the square padding, not the export.** The
+  dynamic export gives the same counts as the `.pt` (6,961 predictions on
+  multiclass_r180, 756 on ball_r180).
+- **Dynamic is also faster here**, because most test frames are wider than
+  tall and it skips the padding rows. On a 1920x1200 frame (the See3CAM's
+  full resolution, tested with one upscaled test image) `multiclass_v2`
+  ran at 34 FPS as `.pt`, 44 fixed and 60 dynamic.
+- **Recommendation: use the `--dynamic` export on the robot's CPU.** One
+  caveat: it hasn't been run on the onboard computer, and some
+  accelerators (TensorRT among them) prefer fixed shapes, so keep the
+  fixed export as the fallback until that's known.
 
 ## Projection accuracy check
 

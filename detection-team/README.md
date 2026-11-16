@@ -428,8 +428,10 @@ balls). Precision/recall at IoU 0.5; CPU speed on an M3 Max with
   epoch 1. The kept checkpoint is epoch 10; `models/ball_v1.json`
   records this.
 - ONNX is ~30% faster on CPU. Its accuracy differs slightly because the
-  export pads every image to a fixed square; testing-deployment-team's
-  `deployment/export_onnx.py` (December) is where that gets settled.
+  export pads every image to a fixed square. Settled Nov 16: exporting
+  with `deployment/export_onnx.py --dynamic` removes the difference (see
+  testing-deployment-team's
+  [ONNX export](../testing-deployment-team/README.md#onnx-export)).
 
 ### multiclass_v2 (recording 180 held out for testing)
 

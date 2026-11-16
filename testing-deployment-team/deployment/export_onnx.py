@@ -91,13 +91,15 @@ def export(
     on a temporary copy: an existing .onnx beside the weights is never
     overwritten unless it is `output` itself.
     """
-    import onnx
-    from ultralytics import YOLO
-
     if weights.suffix != ".pt":
         raise ValueError(f"Expected .pt weights, got {weights}")
     if output.suffix != ".onnx":
         raise ValueError(f"--output must end in .onnx, got {output}")
+
+    # Imported here so the module loads without the ONNX packages (CI has
+    # only the root requirements.txt).
+    import onnx
+    from ultralytics import YOLO
 
     with tempfile.TemporaryDirectory() as tmp:
         copy = Path(tmp) / weights.name

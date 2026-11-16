@@ -1,0 +1,6 @@
+# Extra packages for testing-deployment-team's ONNX work, on top of the root
+# requirements.txt. Not everyone needs them, so they stay out of the shared file.
+#   pip install -r testing-deployment-team/requirements.txt
+onnx==1.23.2         # deployment/export_onnx.py
+onnxslim==0.1.98     # used by ultralytics' ONNX export to simplify the graph
+onnxruntime==1.31.0  # running .onnx weights (benchmarks/inference_speed.py, eval)

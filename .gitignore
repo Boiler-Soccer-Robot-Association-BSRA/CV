@@ -248,3 +248,6 @@ testing-deployment-team/benchmarks/results/*
 integration-team/ros_ws/build/
 integration-team/ros_ws/install/
 integration-team/ros_ws/log/
+
+# Floor-grid photos for the projection accuracy check (share via the team drive)
+testing-deployment-team/benchmarks/floor_grid/photos/

@@ -53,19 +53,36 @@ PAD_GRAY = 114  # same padding color ultralytics uses
 # a new image. crop_scale also moves the boxes.
 
 
-def adjust_lighting(img: np.ndarray, rng: random.Random) -> np.ndarray:
-    """Random brightness/contrast, gamma and color cast."""
+def apply_lighting(
+    img: np.ndarray,
+    contrast: float = 1.0,
+    brightness: float = 0.0,
+    warmth: float = 0.0,
+    gamma: float = 1.0,
+) -> np.ndarray:
+    """A fixed lighting change (the defaults change nothing).
+
+    contrast multiplies pixel values, brightness is added (0-255 scale),
+    warmth > 0 is a warm cast and < 0 a cool one, gamma > 1 darkens the
+    midtones. `adjust_lighting` picks these at random for training;
+    testing-deployment-team's robustness tests call this with set values.
+    """
     out = img.astype(np.float32)
-    contrast = rng.uniform(0.6, 1.4)
-    brightness = rng.uniform(-40, 40)
     out = out * contrast + brightness
     # Per-channel gain: >1 on red = warm (tungsten), >1 on blue = cool (daylight).
-    warmth = rng.uniform(-0.12, 0.12)
     out *= np.array([1 - warmth, 1.0, 1 + warmth], dtype=np.float32)  # B, G, R
     out = np.clip(out, 0, 255)
-    gamma = rng.uniform(0.6, 1.6)
     out = 255.0 * (out / 255.0) ** gamma
     return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def adjust_lighting(img: np.ndarray, rng: random.Random) -> np.ndarray:
+    """Random brightness/contrast, gamma and color cast."""
+    contrast = rng.uniform(0.6, 1.4)
+    brightness = rng.uniform(-40, 40)
+    warmth = rng.uniform(-0.12, 0.12)
+    gamma = rng.uniform(0.6, 1.6)
+    return apply_lighting(img, contrast, brightness, warmth, gamma)
 
 
 def motion_kernel(length: int, angle_deg: float) -> np.ndarray:

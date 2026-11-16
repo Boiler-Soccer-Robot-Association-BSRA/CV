@@ -32,10 +32,11 @@ Never commit directly to `main`.
 ruff check .                              # lint
 ruff format .                             # auto-format
 pytest                                    # unit tests (all teams)
-python testing-deployment-team/tests/eval_harness.py   # benchmark regression gate
+python testing-deployment-team/tests/eval_harness.py              # harness end to end (dummy detector)
+python testing-deployment-team/tests/eval_harness.py --recorded   # real-model regression gate
 ```
 
-All four run in CI (`.github/workflows/lint-test.yml`) on every pull
+All five run in CI (`.github/workflows/lint-test.yml`) on every pull
 request, but running them locally first saves a round trip.
 
 ## Pre-commit hooks

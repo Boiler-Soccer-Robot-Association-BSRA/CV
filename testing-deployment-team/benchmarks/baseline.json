@@ -1,16 +1,26 @@
 {
-  "precision": 1.0,
-  "recall": 1.0,
-  "map50": 1.0,
-  "per_class_ap": {
-    "ball": 1.0
+  "precision": 0.8336445912943543,
+  "recall": 0.8526300323244196,
+  "map50": 0.8268182743638584,
+  "per_class_recall": {
+    "ball": 0.790080738177624,
+    "goalpost": 0.8640226628895185,
+    "landmark": 0.8565252634423128,
+    "robot": 0.8761662425784563
   },
-  "ms_per_frame": 0.2,
-  "num_frames": 5,
-  "num_predictions": 4,
-  "num_ground_truth": 4,
+  "per_class_ap": {
+    "ball": 0.7876009091684628,
+    "goalpost": 0.8333148214918603,
+    "landmark": 0.8397488635367647,
+    "robot": 0.8466085032583457
+  },
+  "ms_per_frame": 30.9,
+  "num_frames": 1405,
+  "num_predictions": 6961,
+  "num_ground_truth": 6806,
   "iou_threshold": 0.5,
-  "detector": "dummy_detector.DummyDetector",
-  "dataset": "fixtures/sample_dataset/manifest.yaml",
-  "note": "Baseline for the bundled dummy detector + synthetic fixture dataset only. Replace with a real model's numbers once detection-team has a trained detector and data-team has a real labeled val set."
+  "detector": "multiclass_v2 (conf 0.2)",
+  "dataset": "multiclass_r180 [test], split fingerprint bb73dce2c8105037",
+  "recorded": "2026-11-16",
+  "note": "Scores of the real model on the held-out test set, as scored (the ball count-once rule for recording 151 is not applied here). Computed from the recorded detections in benchmarks/recorded/ by tests/record_detections.py --write-baseline. ms_per_frame is from the recording machine and is not gated."
 }

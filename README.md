@@ -105,10 +105,13 @@ ruff format .                             # auto-format
 python testing-deployment-team/tests/eval_harness.py
 ```
 
-Runs the current detector (the bundled dummy detector by default) over
-the sample dataset in `testing-deployment-team/tests/fixtures/`, reports
-precision/recall at IoU 0.5 and ms/frame, and fails (nonzero exit) if
-recall has dropped too far versus
+Runs the bundled dummy detector over the sample dataset in
+`testing-deployment-team/tests/fixtures/` and reports precision/recall at
+IoU 0.5 and ms/frame, to prove the harness runs end to end. Add
+`--recorded` for the real-model regression gate: it scores
+`multiclass_v2`'s recorded detections on the held-out test set (no weights
+or images needed) and fails (nonzero exit) if recall, overall or for any
+class, has dropped too far versus
 [`testing-deployment-team/benchmarks/baseline.json`](testing-deployment-team/benchmarks/baseline.json).
 Add `--report-dir some/folder` to also get a visual HTML report — each
 frame with what the detector should have found next to what it did. See

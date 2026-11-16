@@ -31,5 +31,11 @@ jobs:
       - name: Run tests
         run: pytest   # every folder in pyproject.toml's testpaths
 
-      - name: Run benchmark harness (regression gate)
+      - name: Run benchmark harness end to end (dummy detector, synthetic frames)
         run: python testing-deployment-team/tests/eval_harness.py
+
+      # The real model can't run here (weights and TORSO-21 aren't in git), so
+      # this scores multiclass_v2's recorded detections on the held-out test
+      # set against benchmarks/baseline.json, overall and per class.
+      - name: Real-model regression gate (recorded multiclass_v2 detections)
+        run: python testing-deployment-team/tests/eval_harness.py --recorded

@@ -1,0 +1,16 @@
+{
+  "precision": 1.0,
+  "recall": 1.0,
+  "map50": 1.0,
+  "per_class_ap": {
+    "ball": 1.0
+  },
+  "ms_per_frame": 0.2,
+  "num_frames": 5,
+  "num_predictions": 4,
+  "num_ground_truth": 4,
+  "iou_threshold": 0.5,
+  "detector": "dummy_detector.DummyDetector",
+  "dataset": "fixtures/sample_dataset/manifest.yaml",
+  "note": "Baseline for the bundled dummy detector + synthetic fixture dataset only (the no-argument eval_harness.py run). The real model's baseline is baseline.json."
+}

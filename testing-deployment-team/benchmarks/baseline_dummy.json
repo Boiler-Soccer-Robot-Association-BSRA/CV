@@ -12,5 +12,5 @@
   "iou_threshold": 0.5,
   "detector": "dummy_detector.DummyDetector",
   "dataset": "fixtures/sample_dataset/manifest.yaml",
-  "note": "Baseline for the bundled dummy detector + synthetic fixture dataset only. Replace with a real model's numbers once detection-team has a trained detector and data-team has a real labeled val set."
+  "note": "Baseline for the bundled dummy detector + synthetic fixture dataset only (the no-argument eval_harness.py run). The real model's baseline is baseline.json."
 }

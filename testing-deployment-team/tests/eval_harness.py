@@ -27,11 +27,20 @@ Results are written to --output as JSON. If --baseline exists and
 recall; if it has dropped by more than --max-recall-drop, this exits
 nonzero so CI (or a human) catches the regression.
 
-Defaults to the bundled dummy detector and its tiny synthetic dataset in
-fixtures/, so `python eval_harness.py` with no arguments runs the whole
-pipeline end to end today. Point --detector-file / --detector-class /
---weights / --manifest at a real model and dataset once one exists; see
-dummy_detector.py's docstring for the exact interface required.
+Three ways to run it:
+
+  * `python eval_harness.py` (no arguments): the bundled dummy detector on
+    its tiny synthetic dataset in fixtures/, gated on
+    benchmarks/baseline_dummy.json. Proves the pipeline runs end to end
+    (read image -> predict -> score) with no model.
+  * `python eval_harness.py --recorded`: scores the real model's recorded
+    detections (benchmarks/recorded/, made by record_detections.py) against
+    benchmarks/baseline.json, overall and per class. This is the real-model
+    regression gate CI runs: it needs no weights and no images.
+  * `--detector-file / --detector-class / --weights / --manifest`: run any
+    detector on any dataset you have locally; see dummy_detector.py's
+    docstring for the interface. Gated on benchmarks/baseline.json unless
+    --baseline or --no-baseline-check says otherwise.
 
 Sept-Oct milestone. Coordinate with detection-team/training/eval.py so
 this doesn't duplicate that work — this harness is meant to be the
@@ -45,6 +54,7 @@ import importlib.util
 import json
 import sys
 import time
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -59,7 +69,14 @@ from shared.types import BoundingBox, Detection  # noqa: E402
 DEFAULT_MANIFEST = Path(__file__).parent / "fixtures" / "sample_dataset" / "manifest.yaml"
 DEFAULT_DETECTOR_FILE = Path(__file__).parent / "dummy_detector.py"
 DEFAULT_DETECTOR_CLASS = "DummyDetector"
-DEFAULT_BASELINE = REPO_ROOT / "testing-deployment-team" / "benchmarks" / "baseline.json"
+BENCHMARKS_DIR = REPO_ROOT / "testing-deployment-team" / "benchmarks"
+# The real model's scores (multiclass_v2 on the held-out test set).
+DEFAULT_BASELINE = BENCHMARKS_DIR / "baseline.json"
+# The bundled dummy detector's scores on the synthetic fixture frames.
+DUMMY_BASELINE = BENCHMARKS_DIR / "baseline_dummy.json"
+DEFAULT_RECORDED = (
+    BENCHMARKS_DIR / "recorded" / "multiclass_v2_multiclass_r180_test_detections.json"
+)
 DEFAULT_OUTPUT = REPO_ROOT / "testing-deployment-team" / "benchmarks" / "results" / "latest.json"
 
 
@@ -186,6 +203,87 @@ def average_precision(scored: list[tuple[float, bool]], num_ground_truth: int) -
     return ap
 
 
+def score_frames(
+    frames: Iterable[dict[str, Any]],
+    iou_threshold: float,
+    frame_records: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Compute the metrics from per-frame predictions and ground truth.
+
+    Each frame is a dict with `predictions` (list[Detection]),
+    `ground_truth` (list of {class_name, bbox}), `ms` (time the prediction
+    took) and `image_path`. This is the scoring half of the harness: it
+    runs no detector and reads no images, so it works the same on frames a
+    detector just produced (`run_benchmark`) and on detections recorded
+    earlier (`load_recorded_frames`).
+    """
+    total_tp = total_fp = total_fn = 0
+    total_predictions = total_ground_truth = num_frames = 0
+    frame_times_ms = []
+    scored_by_class: dict[str, list[tuple[float, bool]]] = {}
+    ground_truth_by_class: dict[str, int] = {}
+    found_by_class: dict[str, int] = {}
+
+    for frame in frames:
+        predictions, ground_truth = frame["predictions"], frame["ground_truth"]
+        num_frames += 1
+        frame_times_ms.append(frame["ms"])
+        matches, missed = match_frame_indices(predictions, ground_truth, iou_threshold)
+        tp = sum(1 for _, idx in matches if idx is not None)
+
+        total_tp += tp
+        total_fp += len(matches) - tp
+        total_fn += len(missed)
+        for pred, idx in matches:
+            is_tp = idx is not None
+            scored_by_class.setdefault(pred.class_name, []).append((pred.confidence, is_tp))
+        if frame_records is not None:
+            frame_records.append(
+                {
+                    "image_path": frame["image_path"],
+                    "ground_truth": ground_truth,
+                    "matches": matches,
+                    "missed": missed,
+                    "ms": frame["ms"],
+                }
+            )
+        for gt_index, gt in enumerate(ground_truth):
+            name = gt["class_name"]
+            ground_truth_by_class[name] = ground_truth_by_class.get(name, 0) + 1
+            found_by_class[name] = found_by_class.get(name, 0) + (gt_index not in missed)
+        total_predictions += len(predictions)
+        total_ground_truth += len(ground_truth)
+
+    precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 1.0
+    recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 1.0
+    ms_per_frame = sum(frame_times_ms) / len(frame_times_ms) if frame_times_ms else 0.0
+
+    per_class_ap = {
+        class_name: average_precision(scored_by_class.get(class_name, []), count)
+        for class_name, count in sorted(ground_truth_by_class.items())
+    }
+    per_class_recall = {
+        class_name: found_by_class[class_name] / count
+        for class_name, count in sorted(ground_truth_by_class.items())
+    }
+    # With no ground truth anywhere, mAP is undefined; report null rather
+    # than a number that looks meaningful.
+    map50 = sum(per_class_ap.values()) / len(per_class_ap) if per_class_ap else None
+
+    return {
+        "precision": precision,
+        "recall": recall,
+        "map50": map50,
+        "per_class_ap": per_class_ap,
+        "per_class_recall": per_class_recall,
+        "ms_per_frame": ms_per_frame,
+        "num_frames": num_frames,
+        "num_predictions": total_predictions,
+        "num_ground_truth": total_ground_truth,
+        "iou_threshold": iou_threshold,
+    }
+
+
 def run_benchmark(
     manifest_path: Path,
     detector: DetectorProtocol,
@@ -201,81 +299,96 @@ def run_benchmark(
     manifest = load_manifest(manifest_path)
     dataset_dir = manifest_path.parent
 
-    total_tp = total_fp = total_fn = 0
-    total_predictions = total_ground_truth = 0
-    frame_times_ms = []
-    scored_by_class: dict[str, list[tuple[float, bool]]] = {}
-    ground_truth_by_class: dict[str, int] = {}
+    def frames():
+        for entry in manifest:
+            image_path = dataset_dir / entry["image"]
+            image = cv2.imread(str(image_path))
+            if image is None:
+                raise FileNotFoundError(f"Could not read image: {image_path}")
+            start = time.perf_counter()
+            predictions = detector.predict(image)
+            yield {
+                "predictions": predictions,
+                "ground_truth": entry.get("annotations", []),
+                "ms": (time.perf_counter() - start) * 1000,
+                "image_path": image_path,
+            }
 
-    for entry in manifest:
-        image_path = dataset_dir / entry["image"]
-        image = cv2.imread(str(image_path))
-        if image is None:
-            raise FileNotFoundError(f"Could not read image: {image_path}")
+    return score_frames(frames(), iou_threshold, frame_records)
 
-        start = time.perf_counter()
-        predictions = detector.predict(image)
-        frame_ms = (time.perf_counter() - start) * 1000
-        frame_times_ms.append(frame_ms)
 
-        ground_truth = entry.get("annotations", [])
-        matches, missed = match_frame_indices(predictions, ground_truth, iou_threshold)
-        tp = sum(1 for _, idx in matches if idx is not None)
+# --- recorded detections ----------------------------------------------------------
+# CI has no model weights and no dataset images, so it can't run a real model.
+# Instead, a model's detections on the test set are recorded once on a machine
+# that has both (tests/record_detections.py) and committed as two small JSON
+# files, which CI scores with the same code as a live run:
+#
+#   labels:     {"classes": [...], "frames": {image name: [[class, x1, y1, x2, y2], ...]}}
+#   detections: {"classes": [...], "frames": {image name: [[class, conf, x1, y1, x2, y2], ...]},
+#                "labels": labels file name, "fingerprint": ..., "ms_per_frame": ..., ...}
+#
+# `class` is an index into that file's `classes`. Boxes are pixels.
 
-        total_tp += tp
-        total_fp += len(matches) - tp
-        total_fn += len(missed)
-        for pred, idx in matches:
-            is_tp = idx is not None
-            scored_by_class.setdefault(pred.class_name, []).append((pred.confidence, is_tp))
-        if frame_records is not None:
-            frame_records.append(
-                {
-                    "image_path": image_path,
-                    "ground_truth": ground_truth,
-                    "matches": matches,
-                    "missed": missed,
-                    "ms": frame_ms,
-                }
-            )
-        for gt in ground_truth:
-            ground_truth_by_class[gt["class_name"]] = (
-                ground_truth_by_class.get(gt["class_name"], 0) + 1
-            )
-        total_predictions += len(predictions)
-        total_ground_truth += len(ground_truth)
 
-    precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 1.0
-    recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 1.0
-    ms_per_frame = sum(frame_times_ms) / len(frame_times_ms) if frame_times_ms else 0.0
+def load_recorded_frames(detections_path: Path, labels_path: Path | None = None) -> list[dict]:
+    """Recorded detections and their labels as frames for `score_frames`.
 
-    per_class_ap = {
-        class_name: average_precision(scored_by_class.get(class_name, []), count)
-        for class_name, count in sorted(ground_truth_by_class.items())
-    }
-    # With no ground truth anywhere, mAP is undefined; report null rather
-    # than a number that looks meaningful.
-    map50 = sum(per_class_ap.values()) / len(per_class_ap) if per_class_ap else None
-
-    return {
-        "precision": precision,
-        "recall": recall,
-        "map50": map50,
-        "per_class_ap": per_class_ap,
-        "ms_per_frame": ms_per_frame,
-        "num_frames": len(manifest),
-        "num_predictions": total_predictions,
-        "num_ground_truth": total_ground_truth,
-        "iou_threshold": iou_threshold,
-    }
+    `labels_path` defaults to the labels file named in the detections file,
+    in the same folder. Raises ValueError if the two files don't describe
+    the same split (fingerprint) or the same set of frames.
+    """
+    detections = json.loads(detections_path.read_text())
+    if labels_path is None:
+        labels_path = detections_path.parent / detections["labels"]
+    labels = json.loads(labels_path.read_text())
+    if detections.get("fingerprint") != labels.get("fingerprint"):
+        raise ValueError(
+            f"{detections_path.name} was recorded on split {detections.get('fingerprint')}, "
+            f"but {labels_path.name} is split {labels.get('fingerprint')}"
+        )
+    if set(detections["frames"]) != set(labels["frames"]):
+        raise ValueError(f"{detections_path.name} and {labels_path.name} list different frames")
+    ms = float(detections.get("ms_per_frame") or 0.0)
+    frames = []
+    for name in sorted(labels["frames"]):
+        frames.append(
+            {
+                "predictions": [
+                    Detection(detections["classes"][int(c)], float(conf), BoundingBox(*box))
+                    for c, conf, *box in detections["frames"][name]
+                ],
+                "ground_truth": [
+                    {"class_name": labels["classes"][int(c)], "bbox": list(box)}
+                    for c, *box in labels["frames"][name]
+                ],
+                "ms": ms,
+                "image_path": Path(name),
+            }
+        )
+    return frames
 
 
 def check_against_baseline(
     results: dict[str, Any], baseline: dict[str, Any], max_recall_drop: float
 ) -> bool:
-    """Return True if results pass the baseline gate."""
-    drop = baseline["recall"] - results["recall"]
-    return drop <= max_recall_drop
+    """Return True if results pass the baseline gate: overall recall, and
+    each class's recall when the baseline lists them (`per_class_recall`),
+    must not be more than `max_recall_drop` below the baseline's."""
+    return not baseline_failures(results, baseline, max_recall_drop)
+
+
+def baseline_failures(
+    results: dict[str, Any], baseline: dict[str, Any], max_recall_drop: float
+) -> list[str]:
+    """One line per recall number that dropped too far; empty if the gate passes."""
+    checks = [("overall", results["recall"], baseline["recall"])]
+    for name, expected in baseline.get("per_class_recall", {}).items():
+        checks.append((name, results.get("per_class_recall", {}).get(name, 0.0), expected))
+    return [
+        f"{name} recall {actual:.3f} is more than {max_recall_drop} below baseline {expected:.3f}"
+        for name, actual, expected in checks
+        if expected - actual > max_recall_drop
+    ]
 
 
 def main() -> int:
@@ -288,7 +401,29 @@ def main() -> int:
     parser.add_argument("--weights", type=Path, default=None)
     parser.add_argument("--iou-threshold", type=float, default=0.5)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE)
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        default=None,
+        help="Default: benchmarks/baseline.json (the real model), or "
+        "benchmarks/baseline_dummy.json for the bundled dummy detector and fixture.",
+    )
+    parser.add_argument(
+        "--recorded",
+        type=Path,
+        nargs="?",
+        const=DEFAULT_RECORDED,
+        default=None,
+        metavar="DETECTIONS_JSON",
+        help="Score recorded detections instead of running a detector (no weights or "
+        "images needed). With no path: the committed multiclass_v2 recording.",
+    )
+    parser.add_argument(
+        "--labels",
+        type=Path,
+        default=None,
+        help="Labels file for --recorded (default: the one the detections file names).",
+    )
     parser.add_argument("--max-recall-drop", type=float, default=0.05)
     parser.add_argument(
         "--no-baseline-check",
@@ -303,11 +438,24 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    detector_class = load_detector_class(args.detector_file, args.detector_class)
-    detector = detector_class(weights_path=args.weights)
-
     frame_records = [] if args.report_dir else None
-    results = run_benchmark(args.manifest, detector, args.iou_threshold, frame_records)
+    if args.recorded is not None:
+        if args.report_dir:
+            parser.error("--report-dir needs the images, so it can't be used with --recorded")
+        frames = load_recorded_frames(args.recorded, args.labels)
+        results = score_frames(frames, args.iou_threshold)
+    else:
+        detector_class = load_detector_class(args.detector_file, args.detector_class)
+        detector = detector_class(weights_path=args.weights)
+        results = run_benchmark(args.manifest, detector, args.iou_threshold, frame_records)
+
+    if args.baseline is None:
+        is_bundled_dummy = (
+            args.recorded is None
+            and args.detector_file == DEFAULT_DETECTOR_FILE
+            and args.manifest == DEFAULT_MANIFEST
+        )
+        args.baseline = DUMMY_BASELINE if is_bundled_dummy else DEFAULT_BASELINE
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w") as f:
@@ -344,14 +492,17 @@ def main() -> int:
     with args.baseline.open("r") as f:
         baseline = json.load(f)
 
-    if check_against_baseline(results, baseline, args.max_recall_drop):
-        print(f"Recall within {args.max_recall_drop} of baseline ({baseline['recall']:.3f}). OK.")
+    failures = baseline_failures(results, baseline, args.max_recall_drop)
+    if not failures:
+        per_class = " and every class" if baseline.get("per_class_recall") else ""
+        print(
+            f"Recall{per_class} within {args.max_recall_drop} of baseline "
+            f"{args.baseline.name} ({baseline['recall']:.3f}). OK."
+        )
         return 0
 
-    print(
-        f"FAIL: recall {results['recall']:.3f} is more than {args.max_recall_drop} below "
-        f"baseline {baseline['recall']:.3f}."
-    )
+    for failure in failures:
+        print(f"FAIL: {failure}.")
     return 1
 
 

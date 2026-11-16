@@ -113,8 +113,57 @@ thresholding, no model) over the tiny synthetic dataset in
 1. Computes precision, recall and mAP (per-class AP, averaged over
    classes that have ground truth) at IoU 0.5, plus mean ms/frame.
 2. Writes the results to `benchmarks/results/latest.json`.
-3. Compares recall against `benchmarks/baseline.json` and exits nonzero
-   if it dropped by more than `--max-recall-drop` (default `0.05`).
+3. Compares recall against `benchmarks/baseline_dummy.json` and exits
+   nonzero if it dropped by more than `--max-recall-drop` (default `0.05`).
+
+That run proves the harness works end to end with no model. The gate on
+the real model is the next section.
+
+### Real-model regression gate
+
+`benchmarks/baseline.json` holds `multiclass_v2`'s scores on the held-out
+test set (multiclass_r180, 1,405 frames, conf 0.20, IoU 0.5, recorded Nov
+16 on a MacBook CPU): **0.853 recall / 0.834 precision, mAP 0.827**; recall
+per class as scored: ball 0.790, goalpost 0.864, landmark 0.857, robot
+0.876.
+
+CI can't run the model, since weights and TORSO-21 aren't in git. So the
+model's detections on the test set are recorded once on a laptop that has
+both, and committed as two small JSON files in `benchmarks/recorded/`
+(boxes only: the split's labels, and what the model found). CI scores them
+with the same code as a live run:
+
+```bash
+python testing-deployment-team/tests/eval_harness.py --recorded
+```
+
+It fails if recall, overall **or for any class**, is more than 0.05 below
+the baseline.
+
+| It catches | It doesn't catch |
+|---|---|
+| A change to the scoring code (matching, AP, recall) that moves the real model's numbers | A broken `Detector`, preprocessing change or dependency upgrade: CI runs no inference |
+| A new model whose recording scores worse than the baseline, overall or in one class | Anything about speed (`ms_per_frame` is stored, not gated) |
+| A recording made on a different split than the labels (fingerprints must match) | |
+
+To record a model (new weights, a changed test split, or after touching
+`Detector` or upgrading ultralytics):
+
+```bash
+python testing-deployment-team/tests/record_detections.py \
+    detection-team/models/multiclass_v2.pt \
+    data-team/datasets/multiclass_r180/data.yaml --conf 0.20
+python testing-deployment-team/tests/eval_harness.py --recorded \
+    testing-deployment-team/benchmarks/recorded/multiclass_v2_multiclass_r180_test_detections.json
+```
+
+Add `--write-baseline` to the first command only when the new scores
+should become the baseline (a new model for the robot, or new labels), and
+commit that baseline change on its own so it's easy to see when and why
+it moved. `record_detections.py`'s docstring covers each case.
+
+The baseline is recall **as scored**. The count-once rule for recording
+151's ball (ball 0.907) isn't applied in the gate.
 
 To point it at a real model and a real dataset instead:
 
@@ -185,10 +234,8 @@ Needs `ultralytics` from the root `requirements.txt`. The manifest
 needs real images with hand-checked ball boxes; a few dozen frames
 from TORSO-21 (or our own footage) is enough for this purpose.
 
-Once a real model exists, re-run the harness against a real held-out
-set and overwrite `benchmarks/baseline.json` with those numbers (commit
-that change on its own so it's easy to see when/why the baseline
-moved).
+A real model exists now, so `benchmarks/baseline.json` comes from it: see
+[Real-model regression gate](#real-model-regression-gate).
 
 ## Robustness tests
 

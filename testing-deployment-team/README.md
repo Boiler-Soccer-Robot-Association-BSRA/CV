@@ -60,7 +60,9 @@ Progress markers reflect what's visible in the repo as of Oct 1.
 - **Week 10** — Test detection reliability against lighting changes,
   motion blur, camera angle, partial occlusion, and different
   fields/backgrounds (`tests/`).
-- **Week 11** — Benchmark inference speed (`benchmarks/inference_speed.py`);
+- **Week 11** *(speed benchmark done early, Nov 16: see
+  [Inference speed](#inference-speed))* — Benchmark inference speed
+  (`benchmarks/inference_speed.py`);
   investigate ONNX export (`deployment/export_onnx.py`) and, if the
   future onboard computer is NVIDIA-based, begin studying TensorRT.
 - **Week 12** — Compile final documentation (`docs/`) covering training,
@@ -82,11 +84,16 @@ testing-deployment-team/
 
 ## Setup
 
-Uses the root [requirements.txt](../requirements.txt). Dec work will need
-`onnx` (and `onnxruntime`) for export, and `tensorrt` only if targeting an
-NVIDIA onboard computer — add those to a `requirements.txt` in this folder
-when that work starts, rather than the shared one, since not everyone
-needs them.
+Uses the root [requirements.txt](../requirements.txt). ONNX work
+(running or exporting `.onnx` weights) also needs this folder's
+[requirements.txt](requirements.txt):
+
+```bash
+pip install -r testing-deployment-team/requirements.txt
+```
+
+It's kept out of the shared file since not everyone needs it. `tensorrt`
+would go there too, only if the onboard computer turns out to be NVIDIA.
 
 ## Benchmark harness
 
@@ -179,6 +186,52 @@ Once a real model exists, re-run the harness against a real held-out
 set and overwrite `benchmarks/baseline.json` with those numbers (commit
 that change on its own so it's easy to see when/why the baseline
 moved).
+
+## Inference speed
+
+`benchmarks/inference_speed.py` times a model on CPU and reports avg,
+median and p95 milliseconds per frame, and FPS. It takes `.pt` and `.onnx`
+weights (ONNX needs this folder's `requirements.txt`):
+
+```bash
+python testing-deployment-team/benchmarks/inference_speed.py \
+    detection-team/models/multiclass_v2.pt detection-team/models/multiclass_v2.onnx \
+    --images data-team/datasets/multiclass_r180/images/test --runs 300
+```
+
+Each run is one `Detector.predict()` call: resize, inference, NMS and
+conversion to `Detection`s. Reading the image from disk isn't timed, and
+neither are the first `--warmup` calls (default 10). Use real test frames
+with `--images` for any number you report: the default is the tiny
+synthetic fixture frames, which only shows the script runs. Results are
+also written to `benchmarks/results/inference_speed.json` (gitignored).
+
+**Measured Nov 16** on a MacBook Pro (Apple M3 Max, CPU only, 8 torch
+threads; torch 2.14.0, onnxruntime 1.31.0). 300 frames spread evenly over
+the multiclass_r180 test set (320x240 to 800x600), 300 timed runs after 20
+warmup, conf 0.20, 640 px model input:
+
+| Weights | Avg ms | Median ms | p95 ms | FPS |
+|---|---|---|---|---|
+| `multiclass_v2.pt` | 28.7 | 29.3 | 32.1 | 34.9 |
+| `multiclass_v2.onnx` | 22.2 | 22.2 | 22.9 | 45.0 |
+| `ball_v4.pt` | 29.0 | 29.7 | 32.0 | 34.5 |
+| `ball_v4.onnx` | 22.0 | 21.9 | 22.8 | 45.5 |
+
+A second run right after, in the opposite order, gave 31.8 / 44.3 FPS for
+`multiclass_v2` (`.pt` / `.onnx`) and 33.7 / 43.8 for `ball_v4`, so read
+these as **about 32–35 FPS for `.pt` and 44–45 FPS for ONNX**, not to the
+decimal. That agrees with the eval-harness speeds in
+[detection-team's results](../detection-team/README.md#results) (31–32 FPS
+`.pt`, 43–44 ONNX), which also count a few slower first frames.
+
+- ONNX is about 25–30% faster on this CPU and steadier (p95 within 1 ms of
+  the median).
+- The four-class model costs the same as the ball-only one: both are
+  YOLOv8n and only the last layer differs.
+- Both clear the ≥10 Hz ROS 2 target with room to spare **on this laptop**.
+  The robot's onboard computer will be slower; re-run this there before
+  relying on it.
 
 ## Projection accuracy check
 

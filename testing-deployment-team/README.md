@@ -195,6 +195,11 @@ python testing-deployment-team/benchmarks/projection_accuracy.py \
 `camera_params.yaml` is `calibrate.py`'s output plus a `mount:` section
 (see `integration-team/calibration/CALIBRATION_GUIDE.md`, Step 6).
 
+**Ready-made layout.** [`benchmarks/floor_grid/`](benchmarks/floor_grid/README.md)
+has a 13-point taped grid (0.5 to 2.5 m ahead, up to 1 m to each side),
+step-by-step setup, and CSV templates with the positions already filled
+in for both modes below. Use it unless you need a different layout.
+
 **Setting up the rig.** Put the camera at the robot's camera height and
 tilt. Mark points on the floor with tape and measure each one from the
 robot's origin, which is the floor directly under the lens if the mount's

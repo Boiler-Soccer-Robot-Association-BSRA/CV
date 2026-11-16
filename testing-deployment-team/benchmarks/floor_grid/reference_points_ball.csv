@@ -1,0 +1,8 @@
+name,x_m,y_m,image
+ball_C050,0.50,0.00,photos/ball_C050.jpg
+ball_C100,1.00,0.00,photos/ball_C100.jpg
+ball_C150,1.50,0.00,photos/ball_C150.jpg
+ball_C200,2.00,0.00,photos/ball_C200.jpg
+ball_L200,2.00,0.50,photos/ball_L200.jpg
+ball_R200,2.00,-0.50,photos/ball_R200.jpg
+ball_C250,2.50,0.00,photos/ball_C250.jpg

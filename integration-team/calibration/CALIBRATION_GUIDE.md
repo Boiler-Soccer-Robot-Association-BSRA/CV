@@ -7,7 +7,7 @@ result (`camera_params`) lets `geometry/projection.py` turn a pixel into a real
 position on the ground. Without it, positions will be wrong, especially near
 the image edges of this very wide lens.
 
-*Last updated: 2026-11-01. Owner: integration-team.*
+*Last updated: 2026-11-19. Owner: integration-team.*
 
 ## What you need
 
@@ -51,6 +51,25 @@ Use `checkerboard_Tabloid_35mm.pdf`. Ask Hossein for the file.
 **If the lens is turned, removed or swapped, calibrate again.**
 
 ## Step 3: Take the photos
+
+Use `capture.py`. It shows the live picture, says whether the whole board
+is visible, and only saves (SPACE) when the board is found at full size and
+held still, so every saved photo is usable. A 3x3 map turns green where
+saved boards have been, so you can see which corners and edges still need
+one. q quits and prints what's still missing.
+
+```bash
+python integration-team/calibration/capture.py ~/calibration_photos --device 0 --width 1920 --height 1200
+```
+
+On **Windows**, use a folder like `C:\calibration_photos`. If it says the
+camera won't give 1920x1200, or the preview is very slow, add
+`--backend dshow --fourcc MJPG`. Close every other app that might use the
+camera first (e-CAMView, Teams, the Windows Camera app). If the picture is
+the laptop's own webcam, try `--device 1`.
+
+Photos taken some other way (e.g. e-con's e-CAMView app) can be checked
+with `capture.py <folder> --check`. Save them as PNG at full resolution.
 
 Keep the tripod still and move the board. Take **20–30 photos**, and hold the
 board completely still for each one.
